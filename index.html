@@ -72,31 +72,63 @@
             
             <div id="menu-base-chave" style="display: flex; flex-direction: column; gap: 8px;">
                 <button onclick="mostrarSubMenuChave('baixar')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; cursor: pointer; font-weight: 500; color: #334155;">
-                    <span class="material-icons" style="color: #2563eb;">download</span> Baixar Chave
+                    <span class="material-icons" style="color: #2563eb;">download</span> Baixar chave
                 </button>
                 <button onclick="mostrarSubMenuChave('importacao')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; cursor: pointer; font-weight: 500; color: #334155;">
-                    <span class="material-icons" style="color: #2563eb;">upload</span> Chave de Importação
+                    <span class="material-icons" style="color: #2563eb;">upload</span> Chave de importação
+                </button>
+                <button onclick="mostrarSubMenuChave('digitalizacao')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; cursor: pointer; font-weight: 500; color: #334155;">
+                    <span class="material-icons" style="color: #2563eb;">document_scanner</span> Chave de digitalização
                 </button>
             </div>
 
             <div id="submenu-conteudo-chave" style="display: none; padding-top: 4px;">
                 <div id="sub-baixar" style="display: none;">
-                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Escolha o formato do arquivo para exportar as marcações:</p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                        <button onclick="executarBaixarChave('csv')" style="flex: 1; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Baixar CSV</button>
-                        <button onclick="executarBaixarChave('pdf')" style="flex: 1; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Baixar PDF</button>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Selecione o formato do arquivo</p>
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer;">
+                            <input type="radio" name="formato-chave-baixar" value="pdf" checked> PDF
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer;">
+                            <input type="radio" name="formato-chave-baixar" value="csv"> CSV
+                        </label>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button onclick="voltarMenuChave()" class="btn-text">Voltar</button>
+                        <button onclick="executarBaixarChaveConfirmado()" class="btn-primary">Próximo</button>
                     </div>
                 </div>
+
                 <div id="sub-importacao" style="display: none;">
                     <p style="font-size: 13px; color: #334155; margin-bottom: 12px; line-height: 1.4; background: #f1f5f9; padding: 10px; border-radius: 8px;">
-                        <strong>Diretriz:</strong> O arquivo deve ter uma coluna com o número da questão e as demais com a chave.
+                        O arquivo CSV deve ter a primeira coluna com o número da questão e as demais colunas com a chave para cada conjunto de exames.
                     </p>
                     <input type="file" id="input-arquivo-chave" accept=".csv" style="display: none;" onchange="processarImportacaoChaveCSV(event)">
-                    <button onclick="document.getElementById('input-arquivo-chave').click()" style="width: 100%; padding: 12px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
-                        IMPORTAR ARQUIVO (CSV)
+                    <button onclick="document.getElementById('input-arquivo-chave').click()" style="width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
+                        Importar arquivo
                     </button>
+                    <button onclick="voltarMenuChave()" style="width: 100%; background: none; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; color: #64748b; font-size: 13px; cursor: pointer; font-weight: bold;">Voltar</button>
                 </div>
-                <button onclick="voltarMenuChave()" style="width: 100%; background: none; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; color: #64748b; font-size: 13px; cursor: pointer; font-weight: bold;">Voltar</button>
+
+                <div id="sub-digitalizacao" style="display: none;">
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Insira respostas diretamente digitalizando um gabarito preenchido por câmera OMR.</p>
+                    <button onclick="simularLeituraCartao(); fecharModalTresPontinhos();" style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
+                        Digitalizar Chave OMR
+                    </button>
+                    <button onclick="voltarMenuChave()" style="width: 100%; background: none; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; color: #64748b; font-size: 13px; cursor: pointer; font-weight: bold;">Voltar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Reiniciar Chave -->
+    <div id="modal-confirmar-reiniciar" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;" class="no-print">
+        <div style="background: #fff; width: 85%; max-width: 340px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <h3 style="font-size: 16px; margin-bottom: 8px; color: #1e293b;">Alerta</h3>
+            <p style="font-size: 14px; color: #64748b; margin-bottom: 20px; line-height: 1.4;">Tem certeza de que deseja limpar a chave de resposta?</p>
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="fecharModalReiniciar()" class="btn-text" style="color: #2563eb;">Não</button>
+                <button onclick="confirmarReiniciarChave()" class="btn-text" style="color: #2563eb; font-weight: bold;">Sim</button>
             </div>
         </div>
     </div>
@@ -843,6 +875,9 @@
             const digitados = prova.digitalizadosCount || 0;
             const perc = totalAlunos > 0 ? Math.min(100, Math.round((digitados/totalAlunos)*100)) : 0;
             
+            // Verifica se tem respostas preenchidas para mostrar "Chave salva" ou "Não disponível"
+            const temChaveSalva = prova.gabarito && prova.gabarito.some(r => r !== "");
+            
             document.getElementById('tela-conteudo').innerHTML = `
                 <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0;">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -852,16 +887,36 @@
                     <button class="btn-text" onclick="alert('Compartilhar exame')" style="padding:0; color:#2563eb;"><span class="material-icons">share</span></button>
                 </div>
 
+                <!-- Card Superior Estilo Exato do Vídeo -->
                 <div style="padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 6px;">
-                        <span>Folha digitalizada: ${digitados}/${totalAlunos}</span>
-                        <span onclick="abrirSubTela('relatorios')" style="color: #2563eb; font-weight: bold; cursor: pointer;">Ver relatórios</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; min-width: 45px;">
+                                <div style="font-size: 9px; text-transform: uppercase;">out.</div>
+                                <div style="font-size: 14px;">17</div>
+                            </div>
+                            <span style="font-weight: bold; font-size: 15px; color: #1e293b;">${prova.nome}</span>
+                        </div>
+                        <div style="background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; color: #475569; display: flex; align-items: center; gap: 4px;">
+                            <span class="material-icons" style="font-size: 14px;">lock</span> Privado
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 15px; font-size: 12px; color: #64748b; margin-bottom: 10px;">
+                        <span>❓ ${prova.gabarito.length}</span>
+                        <span>${temChaveSalva ? '🔑 Chave salva' : '🔒 Não disponível'}</span>
+                        <span>👥 ${prova.turmaNome || 'A2'}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #64748b;">Folha digitalizada: ${digitados}/${totalAlunos}</span>
+                        <button class="btn-primary" onclick="abrirSubTela('relatorios')" style="background: #2563eb; padding: 6px 12px; font-size: 12px; border-radius: 6px;">Ver relatórios</button>
                     </div>
                     <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow:hidden;"><div style="width: ${perc}%; background: #2563eb; height: 100%;"></div></div>
                 </div>
 
                 <div style="padding: 16px; background: #f8fafc; flex: 1; overflow-y: auto;">
-                    <h3 style="font-size: 13px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Gerenciamento de exames</h3>
+                    <h3 style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Gerenciamento de exames</h3>
                     
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
                         <div onclick="abrirSubTela('palavra-chave')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
@@ -900,7 +955,7 @@
                         </div>
                     </div>
 
-                    <h3 style="font-size: 13px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Comunicando</h3>
+                    <h3 style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Comunicando</h3>
 
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                         <div onclick="abrirSubTela('relatorios')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
@@ -1005,41 +1060,76 @@
             prova.gabarito.forEach((resp, i) => {
                 let materia = "GERAL";
                 if(prova.blocos) { const b = prova.blocos.find(x => (i+1) >= x.inicio && (i+1) <= x.fim); if(b) materia = b.materia; }
-                if(materia !== ultMateria) { ultMateria = materia; linhasHTML += `<div style="text-align:center; font-weight:bold; padding:10px; background:#e2e8f0;">${materia}</div>`; }
+                if(materia !== ultMateria) { ultMateria = materia; linhasHTML += `<div style="text-align:center; font-weight:bold; padding:10px; background:#e2e8f0; font-size:13px;">${materia}</div>`; }
                 let botoes = '';
                 ['A','B','C','D','E'].forEach(alt => {
                     const sel = resp === alt;
                     botoes += `<div onclick="mudarRespostaGabarito(${i}, '${alt}')" style="width: 32px; height: 32px; border-radius: 50%; background: ${sel?'#16a34a':'#e2e8f0'}; color: ${sel?'#fff':'#333'}; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer;">${alt}</div>`;
                 });
-                linhasHTML += `<div style="display:flex; align-items:center; padding:10px; border-bottom:1px solid #e2e8f0; background:#fff;"><span style="width:40px; font-weight:bold;">${i+1}</span><div style="display:flex; gap:10px;">${botoes}</div></div>`;
+                linhasHTML += `<div style="display:flex; align-items:center; padding:10px 16px; border-bottom:1px solid #e2e8f0; background:#fff;"><span style="width:40px; font-weight:bold; color:#64748b;">${i+1}</span><div style="display:flex; gap:12px;">${botoes}</div></div>`;
             });
+            
             document.getElementById('tela-conteudo').innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
                     <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
-                    <h1 style="font-size: 16px;">Palavra-chave</h1>
+                    <h1 style="font-size: 16px; font-weight: bold;">Palavra-chave</h1>
                     <button class="btn-text" onclick="document.getElementById('modal-tres-pontinhos').style.display='flex';" style="padding:0;"><span class="material-icons">more_vert</span></button>
                 </div>
                 <div style="flex: 1; overflow-y: auto;">${linhasHTML}</div>
+                <div style="padding: 12px 16px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; gap: 10px;">
+                    <button onclick="abrirModalReiniciar()" class="btn-text" style="flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; color: #64748b;">Reiniciar</button>
+                    <button onclick="salvarChaveGabaritoTela()" class="btn-primary" style="flex: 1; justify-content: center; border-radius: 8px;">Salvar</button>
+                </div>
             `;
         }
-        function mudarRespostaGabarito(i, alt) { const p = obterDados('provas_app'); p[provaAtualIndex].gabarito[i] = alt; salvarDados('provas_app', p); renderizarTelaPalavraChave(); }
+
+        function mudarRespostaGabarito(i, alt) { 
+            const p = obterDados('provas_app'); 
+            // Se já for a mesma, desmarca (clique duplo)
+            if (p[provaAtualIndex].gabarito[i] === alt) {
+                p[provaAtualIndex].gabarito[i] = "";
+            } else {
+                p[provaAtualIndex].gabarito[i] = alt; 
+            }
+            salvarDados('provas_app', p); 
+            renderizarTelaPalavraChave(); 
+        }
+
+        function salvarChaveGabaritoTela() {
+            alert("Chave salva com sucesso!");
+            abrirSubTela(null);
+        }
+
+        function abrirModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'flex'; }
+        function fecharModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'none'; }
+        
+        function confirmarReiniciarChave() {
+            const p = obterDados('provas_app');
+            p[provaAtualIndex].gabarito = Array(p[provaAtualIndex].gabarito.length).fill("");
+            salvarDados('provas_app', p);
+            fecharModalReiniciar();
+            renderizarTelaPalavraChave();
+        }
+
         function fecharModalTresPontinhos() { document.getElementById('modal-tres-pontinhos').style.display='none'; }
         
         function mostrarSubMenuChave(tipo) { 
             document.getElementById('menu-base-chave').style.display='none'; 
             document.getElementById('submenu-conteudo-chave').style.display='block'; 
-            ['baixar','importacao'].forEach(t => document.getElementById(`sub-${t}`).style.display = t===tipo ? 'block' : 'none');
+            ['baixar','importacao','digitalizacao'].forEach(t => document.getElementById(`sub-${t}`).style.display = t===tipo ? 'block' : 'none');
         }
         function voltarMenuChave() { document.getElementById('menu-base-chave').style.display='flex'; document.getElementById('submenu-conteudo-chave').style.display='none'; }
 
-        function executarBaixarChave(formato) {
+        function executarBaixarChaveConfirmado() {
+            const formato = document.querySelector('input[name="formato-chave-baixar"]:checked').value;
             const provas = obterDados('provas_app');
             const prova = provas[provaAtualIndex];
             fecharModalTresPontinhos();
+            voltarMenuChave();
 
             if (formato === 'csv') {
                 let csvContent = "Q,KEY\n";
-                prova.gabarito.forEach((resp, i) => { csvContent += `${i + 1},${resp}\n`; });
+                prova.gabarito.forEach((resp, i) => { csvContent += `${i + 1},${resp || ''}\n`; });
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
                 link.setAttribute("href", URL.createObjectURL(blob));
@@ -1079,7 +1169,7 @@
                 fecharModalTresPontinhos();
                 voltarMenuChave();
                 renderizarTelaPalavraChave();
-                alert(`${atualizadas} respostas do gabarito atualizadas com sucesso!`);
+                alert(`${atualizadas} respostas da chave atualizadas com sucesso!`);
                 document.getElementById('input-arquivo-chave').value = '';
             };
             reader.readAsText(file, "UTF-8");
@@ -1095,7 +1185,7 @@
             if(prova.digitalizadosCount < turma.alunos.length) {
                 let aluno = turma.alunos[prova.digitalizadosCount];
                 const alts = ['A','B','C','D','E'];
-                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.3 ? correta : alts[Math.floor(Math.random()*5)]);
+                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.3 ? (correta || 'A') : alts[Math.floor(Math.random()*5)]);
                 prova.digitalizadosCount++;
                 salvarDados('turmas_app', turmas); salvarDados('provas_app', provas);
                 alert(`Cartão lido: ${aluno.nome}`); renderizarTelaDetalheProva();
@@ -1125,13 +1215,13 @@
             
             ranqueados.forEach((a, rank) => {
                 html += `
-                    <div style="background:#fff; padding:12px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; cursor:pointer;" onclick="alunoRelatorioIndex=${rank}; abrirSubTela('relatorio-detalhe');">
+                    <div style="background:#fff; padding:12px 16px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items: center; cursor:pointer;" onclick="alunoRelatorioIndex=${rank}; abrirSubTela('relatorio-detalhe');">
                         <div>
-                            <strong style="display:block;">${a.nome}</strong>
-                            <small>${a.numero || '--'}</small>
+                            <strong style="display:block; font-size:14px; color:#1e293b;">${a.nome.toUpperCase()}</strong>
+                            <small style="color:#64748b;">${a.numero || '--'}</small>
                         </div>
                         <div style="text-align:right;">
-                            <strong style="color:#2563eb; display:block;">${a.stats.marcas} pts</strong>
+                            <strong style="color:#2563eb; display:block; font-size:15px;">${a.stats.marcas} pts</strong>
                             <span style="font-size:12px; color:#16a34a;">✔ ${a.stats.corretas}</span>
                         </div>
                     </div>
@@ -1139,11 +1229,11 @@
             });
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="display: flex; align-items: center; padding: 12px; background: #fff; border-bottom: 1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="abrirSubTela(null)"><span class="material-icons">arrow_back</span></button>
-                    <h1>Ver relatórios</h1>
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
+                    <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
+                    <h1 style="font-size: 16px; font-weight: bold;">Ver relatórios</h1>
                 </div>
-                <div style="flex:1; overflow-y:auto; background:#f1f5f9;">${html || '<p style="padding:20px; text-align:center;">Nenhum cartão escaneado.</p>'}</div>
+                <div style="flex:1; overflow-y:auto; background:#f1f5f9;">${html || '<p style="padding:20px; text-align:center; color:#64748b;">Nenhum cartão escaneado.</p>'}</div>
             `;
         }
 
@@ -1158,22 +1248,25 @@
             const a = ranqueados[alunoRelatorioIndex];
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="display: flex; justify-content: space-between; padding: 12px; background: #fff; border-bottom: 1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="abrirSubTela('relatorios')"><span class="material-icons">arrow_back</span></button>
-                    <button class="btn-text" onclick="window.alunoEditandoIdx = ${a.originalIndex}; abrirSubTela('editar-respostas-aluno')"><span class="material-icons" style="color:#2563eb">edit</span></button>
+                <div style="display: flex; justify-content: space-between; align-items:center; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <button class="btn-text" onclick="abrirSubTela('relatorios')" style="padding:0;"><span class="material-icons">arrow_back</span></button>
+                        <h1 style="font-size:16px; font-weight:bold;">Relatório do Aluno</h1>
+                    </div>
+                    <button class="btn-text" onclick="window.alunoEditandoIdx = ${a.originalIndex}; abrirSubTela('editar-respostas-aluno')" style="padding:0;"><span class="material-icons" style="color:#2563eb">edit</span></button>
                 </div>
                 <div style="padding:16px; background:#f8fafc; flex:1; overflow-y:auto;">
-                    <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:16px;">
-                        <h2 style="font-size:16px; margin-bottom:10px;">${a.nome}</h2>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;"><span>Marks</span> <strong>${a.stats.marcas}</strong></div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;"><span>Percentage</span> <strong>${a.stats.percentual}%</strong></div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;"><span>Correct</span> <strong style="color:#16a34a;">${a.stats.corretas}</strong></div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Incorrect</span> <strong style="color:#ef4444;">${a.stats.incorretas}</strong></div>
+                    <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:16px; border:1px solid #e2e8f0;">
+                        <h2 style="font-size:16px; margin-bottom:12px; color:#1e293b;">${a.nome.toUpperCase()}</h2>
+                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Pontuação</span> <strong>${a.stats.marcas} pts</strong></div>
+                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Percentual</span> <strong>${a.stats.percentual}%</strong></div>
+                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Acertos</span> <strong style="color:#16a34a;">${a.stats.corretas}</strong></div>
+                        <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Erros</span> <strong style="color:#ef4444;">${a.stats.incorretas}</strong></div>
                     </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#fff; border-top:1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="alunoRelatorioIndex--; abrirSubTela('relatorio-detalhe')">Anterior</button>
-                    <button class="btn-text" onclick="alunoRelatorioIndex++; abrirSubTela('relatorio-detalhe')">Próximo</button>
+                <div style="display:flex; justify-content:space-between; padding:12px 16px; background:#fff; border-top:1px solid #e2e8f0;">
+                    <button class="btn-text" onclick="alunoRelatorioIndex--; abrirSubTela('relatorio-detalhe')" style="color:#2563eb;">← Anterior</button>
+                    <button class="btn-text" onclick="alunoRelatorioIndex++; abrirSubTela('relatorio-detalhe')" style="color:#2563eb;">Próximo →</button>
                 </div>
             `;
         }
@@ -1191,13 +1284,13 @@
                     const bg = (respAtual === alt) ? '#16a34a' : '#e2e8f0';
                     botoes += `<div onclick="mudarRespostaAlunoEdit(${i}, '${alt}')" style="width:32px; height:32px; border-radius:50%; background:${bg}; color:${respAtual===alt?'#fff':'#333'}; display:flex; align-items:center; justify-content:center; font-weight:bold; cursor:pointer;">${alt}</div>`;
                 });
-                html += `<div style="display:flex; padding:10px; border-bottom:1px solid #e2e8f0; background:#fff;"><span style="width:30px; font-weight:bold;">${i+1}</span><div style="display:flex; gap:10px;">${botoes}</div></div>`;
+                html += `<div style="display:flex; align-items:center; padding:10px 16px; border-bottom:1px solid #e2e8f0; background:#fff;"><span style="width:40px; font-weight:bold; color:#64748b;">${i+1}</span><div style="display:flex; gap:12px;">${botoes}</div></div>`;
             }
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="padding: 12px; background: #fff; display: flex; gap: 10px; border-bottom:1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="abrirSubTela('relatorio-detalhe')"><span class="material-icons">arrow_back</span></button>
-                    <h1>Edição Manual</h1>
+                <div style="padding: 12px 16px; background: #fff; display: flex; align-items:center; gap: 12px; border-bottom:1px solid #e2e8f0;">
+                    <button class="btn-text" onclick="abrirSubTela('relatorio-detalhe')" style="padding:0;"><span class="material-icons">arrow_back</span></button>
+                    <h1 style="font-size:16px; font-weight:bold;">Edição Manual do Aluno</h1>
                 </div>
                 <div style="flex:1; overflow-y:auto;">${html}</div>
             `;
