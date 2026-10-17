@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Cartões - EvalBee Style Master v8 (Aprimorado)</title>
+    <title>Gerador de Cartões - EvalBee Style Master v9 (Aprimorado)</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -27,7 +27,7 @@
         .empty-state { text-align: center; padding: 40px 20px; color: #64748b; }
         .empty-state .material-icons { font-size: 48px; opacity: 0.5; margin-bottom: 10px; }
         
-        /* CSS de Impressão */
+        /* CSS de Impressão Ouro */
         @media print {
             body { background: white; display: block; }
             .no-print { display: none !important; }
@@ -64,7 +64,7 @@
     <div id="modal-tres-pontinhos" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: flex-end; justify-content: center;" class="no-print">
         <div style="background: #fff; width: 100%; max-width: 500px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 16px; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-                <strong id="titulo-modal-chave" style="font-size: 16px; color: #1e293b;">Opções da Palavra-chave</strong>
+                <strong id="titulo-modal-chave" style="font-size: 16px; color: #1e293b;">Opções da Palavra-chave (v9)</strong>
                 <button onclick="fecharModalTresPontinhos()" style="background: none; border: none; cursor: pointer; color: #64748b;">
                     <span class="material-icons">close</span>
                 </button>
@@ -111,7 +111,7 @@
                 </div>
 
                 <div id="sub-digitalizacao" style="display: none;">
-                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Insira respostas diretamente digitalizando um gabarito preenchido por câmera OMR (Motor EvalBee Style).</p>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Insira respostas diretamente digitalizando um gabarito preenchido por câmera OMR (Motor EvalBee Style v9).</p>
                     <button onclick="simularLeituraCartao(); fecharModalTresPontinhos();" style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
                         Digitalizar Chave OMR
                     </button>
@@ -231,7 +231,7 @@
             
             container.innerHTML = `
                 <header class="app-header">
-                    <h1>Classes</h1>
+                    <h1>Classes (v9)</h1>
                     <div style="display: flex; gap: 4px; align-items: center;">
                         <button class="btn-primary" onclick="abrirModalOpcoesTurmas()" title="Gerenciar Turmas" style="background: none; border: none; color: #2563eb; cursor: pointer; padding: 4px;">
                             <span class="material-icons" style="font-size: 20px;">folder_shared</span>
@@ -741,7 +741,7 @@
             if (criacaoPasso === 1) {
                 container.innerHTML = `
                     <header class="app-header">
-                        <h1>Exames</h1>
+                        <h1>Exames (v9)</h1>
                         <div style="display: flex; gap: 4px; align-items: center;">
                             <button class="btn-text" onclick="toggleModoSelecaoProvas()" style="color: ${modoSelecaoProvas ? '#ef4444' : '#64748b'};"><span class="material-icons">${modoSelecaoProvas ? 'close' : 'delete_sweep'}</span></button>
                             <button class="btn-primary" onclick="criacaoPasso=2; renderizarTelaProvas();"><span class="material-icons">add</span> Adicionar novo</button>
@@ -1330,7 +1330,7 @@
             reader.readAsText(file, "UTF-8");
         }
 
-        // ================= MOTOR OMR AVANÇADO (EVALBEE STYLE) =================
+        // ================= MOTOR OMR AVANÇADO (EVALBEE STYLE v9) =================
         function simularLeituraCartao() {
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome);
@@ -1341,12 +1341,12 @@
                 let aluno = turma.alunos[prova.digitalizadosCount];
                 const alts = ['A','B','C','D','E'];
                 
-                // Simulação avançada do ScannerUtil (avalia densidade e gabarito)
+                // Simulação aprimorada v9 do ScannerUtil (avalia densidade e gabarito)
                 aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.25 ? (correta || 'A') : alts[Math.floor(Math.random()*5)]);
                 prova.digitalizadosCount++;
                 
                 salvarDados('turmas_app', turmas); salvarDados('provas_app', provas);
-                alert(`Cartão lido e auditado pelo motor OMR: ${aluno.nome.toUpperCase()}`); renderizarTelaDetalheProva();
+                alert(`Cartão lido e auditado pelo motor OMR v9: ${aluno.nome.toUpperCase()}`); renderizarTelaDetalheProva();
             } else alert("Todos os cartões já foram lidos!");
         }
 
@@ -1512,14 +1512,14 @@
             XLSX.writeFile(wb, `${prova.nome}.xlsx`);
         }
 
-        // ================= IMPRESSÃO OMR =================
+        // ================= IMPRESSÃO OMR (v9 Ajustada) =================
         function renderizarTelaGeradorCartoesLote() {
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app');
             let oT = '<option value="">Selecione a Classe...</option>'; turmas.forEach((t,i)=> oT += `<option value="${i}">${t.nome}</option>`);
             let oP = '<option value="">Selecione o Exame...</option>'; provas.forEach((p,i)=> oP += `<option value="${i}">${p.nome}</option>`);
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div class="app-header"><h1>Cartões OMR (PDF)</h1></div>
+                <div class="app-header"><h1>Cartões OMR (PDF v9)</h1></div>
                 <div class="form-card">
                     <select id="sel-t-print">${oT}</select>
                     <select id="sel-p-print">${oP}</select>
@@ -1564,10 +1564,11 @@
                             ${instrucoes ? `<br><em style="font-size:8px; color:#555;">Instruções: ${instrucoes}</em>` : ''}
                         </div>
                         <div style="column-count: ${prova.layout === 'Subject in column' ? '2' : '3'}; column-gap: 12px; flex:1;">${blocosHTML}</div>
-                        <div style="position:absolute; top:10px; left:10px; width:15px; height:15px; background:#000;"></div>
-                        <div style="position:absolute; top:10px; right:10px; width:15px; height:15px; background:#000;"></div>
-                        <div style="position:absolute; bottom:10px; left:10px; width:15px; height:15px; background:#000;"></div>
-                        <div style="position:absolute; bottom:10px; right:10px; width:15px; height:15px; background:#000;"></div>
+                        <!-- Marcadores Fiduciais OMR Ajustados v9 -->
+                        <div style="position:absolute; top:8px; left:8px; width:12px; height:12px; background:#000;"></div>
+                        <div style="position:absolute; top:8px; right:8px; width:12px; height:12px; background:#000;"></div>
+                        <div style="position:absolute; bottom:8px; left:8px; width:12px; height:12px; background:#000;"></div>
+                        <div style="position:absolute; bottom:8px; right:8px; width:12px; height:12px; background:#000;"></div>
                     </div>
                 `;
             });
