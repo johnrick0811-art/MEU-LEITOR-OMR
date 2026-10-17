@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Cartões - EvalBee Style Completo v2</title>
+    <title>Gerador de Cartões - EvalBee Style Completo v3</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -183,10 +183,10 @@
         let filtroAlunosCriterio = 'numero'; 
         let filtroAlunosOrdem = 'asc';        
 
-        // Wizard de Criação de Exame Avançado (Estilo EvalBee Vídeo)
+        // Wizard de Criação de Exame Avançado (Corrigido para persistir o nome)
         let criacaoPasso = 1;
         let dadosNovoExame = {
-            nome: "", turmaIdx: "", digitosRol: 5, conjuntos: 1, assuntosCount: 1,
+            nome: "", turmaNome: "", digitosRol: 5, conjuntos: 1, assuntosCount: 1,
             assuntos: [{ materia: "Assunto 1", secoesCount: 1, q: 10, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false }]
         };
 
@@ -774,7 +774,7 @@
                     <div class="app-header">
                         <button class="btn-text" onclick="criacaoPasso=1; renderizarTelaProvas();">Cancelar</button>
                         <h1 style="font-size: 16px;">Criar Exame (1/2)</h1>
-                        <button class="btn-primary" onclick="criacaoPasso=3; renderizarTelaProvas();">Próximo</button>
+                        <button class="btn-primary" onclick="avancarParaPasso3()">Próximo</button>
                     </div>
                     <div class="form-card" style="flex: 1; overflow-y: auto;">
                         <input type="text" id="novo-exame-nome" placeholder="Nome do Exame" style="margin-bottom: 15px; font-weight: bold;" value="${dadosNovoExame.nome}">
@@ -864,6 +864,21 @@
             }
         }
 
+        // Função corrigida para capturar e validar o nome do exame digitado na tela 1
+        function avancarParaPasso3() {
+            const nomeInput = document.getElementById('novo-exame-nome');
+            const turmaSelect = document.getElementById('novo-exame-turma');
+            if (nomeInput) dadosNovoExame.nome = nomeInput.value.trim();
+            if (turmaSelect) dadosNovoExame.turmaNome = turmaSelect.value;
+            
+            if (!dadosNovoExame.nome) {
+                alert("Insira o nome do exame.");
+                return;
+            }
+            criacaoPasso = 3;
+            renderizarTelaProvas();
+        }
+
         function renderizarListaProvasProcessada() {
             const provas = obterDados('provas_app');
             const lista = document.getElementById('lista-provas-geral');
@@ -926,10 +941,6 @@
         }
 
         function finalizarCriacaoExame() {
-            const nomeInput = document.getElementById('novo-exame-nome');
-            const turmaSelect = document.getElementById('novo-exame-turma');
-            if(nomeInput) dadosNovoExame.nome = nomeInput.value.trim();
-            if(turmaSelect) dadosNovoExame.turmaNome = turmaSelect.value;
             if(!dadosNovoExame.nome) return alert("Insira o nome do exame.");
 
             let totalQ = 0;
@@ -958,7 +969,7 @@
             });
             salvarDados('provas_app', provas);
             criacaoPasso = 1;
-            dadosNovoExame = { nome: "", turmaIdx: "", digitosRol: 5, conjuntos: 1, assuntosCount: 1, assuntos: [{ materia: "Assunto 1", secoesCount: 1, q: 10, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false }] };
+            dadosNovoExame = { nome: "", turmaNome: "", digitosRol: 5, conjuntos: 1, assuntosCount: 1, assuntos: [{ materia: "Assunto 1", secoesCount: 1, q: 10, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false }] };
             renderizarTelaProvas();
         }
 
