@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* Estilos Originais + Melhorias de UI */
+        /* Estilos Base e UI */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
         body { background-color: #f1f5f9; color: #1e293b; height: 100vh; display: flex; justify-content: center; }
         .app-container { width: 100%; max-width: 500px; height: 100%; background: #f8fafc; display: flex; flex-direction: column; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; }
@@ -47,11 +47,11 @@
         <nav class="app-nav">
             <button class="nav-item active" onclick="mudarAba('turmas', this)">
                 <span class="material-icons">school</span>
-                <span>Turmas</span>
+                <span>Classes</span>
             </button>
             <button class="nav-item" onclick="mudarAba('provas', this)">
                 <span class="material-icons">quiz</span>
-                <span>Provas</span>
+                <span>Exames</span>
             </button>
             <button class="nav-item" onclick="mudarAba('cartoes', this)">
                 <span class="material-icons">print</span>
@@ -60,11 +60,11 @@
         </nav>
     </div>
 
-    <!-- Modais Hardcoded Originais -->
+    <!-- Modal Base (Três Pontinhos / Chaves) -->
     <div id="modal-tres-pontinhos" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: flex-end; justify-content: center;" class="no-print">
         <div style="background: #fff; width: 100%; max-width: 500px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 16px; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-                <strong id="titulo-modal-chave" style="font-size: 16px; color: #1e293b;">Opções da Chave</strong>
+                <strong id="titulo-modal-chave" style="font-size: 16px; color: #1e293b;">Opções</strong>
                 <button onclick="fecharModalTresPontinhos()" style="background: none; border: none; cursor: pointer; color: #64748b;">
                     <span class="material-icons">close</span>
                 </button>
@@ -77,9 +77,6 @@
                 <button onclick="mostrarSubMenuChave('importacao')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; cursor: pointer; font-weight: 500; color: #334155;">
                     <span class="material-icons" style="color: #2563eb;">upload</span> Chave de Importação
                 </button>
-                <button onclick="mostrarSubMenuChave('digitalizacao')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; cursor: pointer; font-weight: 500; color: #334155;">
-                    <span class="material-icons" style="color: #2563eb;">qr_code_scanner</span> Chave de Digitalização
-                </button>
             </div>
 
             <div id="submenu-conteudo-chave" style="display: none; padding-top: 4px;">
@@ -90,7 +87,6 @@
                         <button onclick="executarBaixarChave('pdf')" style="flex: 1; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Baixar PDF</button>
                     </div>
                 </div>
-
                 <div id="sub-importacao" style="display: none;">
                     <p style="font-size: 13px; color: #334155; margin-bottom: 12px; line-height: 1.4; background: #f1f5f9; padding: 10px; border-radius: 8px;">
                         <strong>Diretriz:</strong> O arquivo deve ter uma coluna com o número da questão e as demais colunas com a chave.
@@ -100,15 +96,6 @@
                         IMPORTAR ARQUIVO (CSV)
                     </button>
                 </div>
-
-                <div id="sub-digitalizacao" style="display: none; text-align: center;">
-                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Capture a imagem do cartão preenchido para extração automática:</p>
-                    <input type="file" id="input-imagem-omr" accept="image/*" style="display: none;" onchange="processarDigitalizacaoOMR(event)">
-                    <button onclick="document.getElementById('input-imagem-omr').click()" style="width: 100%; padding: 12px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
-                        LER CARTÃO / IMAGEM OMR
-                    </button>
-                </div>
-                
                 <button onclick="voltarMenuChave()" style="width: 100%; background: none; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; color: #64748b; font-size: 13px; cursor: pointer; font-weight: bold;">Voltar</button>
             </div>
         </div>
@@ -118,7 +105,7 @@
     <div id="preview-cartoes-container" style="display: none;"></div>
 
     <script>
-        // ================= ESTADOS ORIGINAIS =================
+        // ================= ESTADOS GLOBAIS =================
         let abaAtiva = 'turmas';
         let turmaAtualIndex = null;
         let provaAtualIndex = null;
@@ -164,7 +151,6 @@
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             if(elemento) elemento.classList.add('active');
             
-            // Garantir que a área de impressão só mostre quando necessário
             if(aba !== 'cartoes') {
                 document.getElementById('preview-cartoes-container').style.display = 'none';
                 document.getElementById('app').style.display = 'flex';
@@ -182,18 +168,10 @@
                     renderizarTelaProvas();
                 } else {
                     if (subTelaAtual === 'palavra-chave') renderizarTelaPalavraChave();
-                    else if (subTelaAtual === 'folha-omr') renderizarTelaFolhaOmrPreview();
-                    else if (subTelaAtual === 'configuracoes-exame') renderizarTelaConfiguracoesExame();
-                    else if (subTelaAtual === 'cfg-notas-exame') renderizarTelaCfgNotasExame();
-                    else if (subTelaAtual === 'cfg-cabecalho') renderizarTelaCfgCabecalho();
-                    else if (subTelaAtual === 'cfg-etiquetas') renderizarTelaCfgEtiquetas();
-                    else if (subTelaAtual === 'cfg-notas-intervalo') renderizarTelaCfgNotasIntervalo();
-                    else if (subTelaAtual === 'cfg-perguntas-invalidas') renderizarTelaCfgPerguntasInvalidas();
-                    else if (subTelaAtual === 'cfg-metodo-classificacao') renderizarTelaCfgMetodoClassificacao();
+                    else if (subTelaAtual === 'ausentes') renderizarTelaAusentes();
                     else if (subTelaAtual === 'relatorios') renderizarTelaRelatoriosLista();
                     else if (subTelaAtual === 'relatorio-detalhe') renderizarTelaRelatorioDetalheAluno();
                     else if (subTelaAtual === 'editar-respostas-aluno') renderizarTelaEditarRespostasAluno();
-                    else if (subTelaAtual === 'ausentes') renderizarTelaAusentes();
                     else renderizarTelaDetalheProva();
                 }
             } else if (abaAtiva === 'cartoes') {
@@ -201,13 +179,13 @@
             }
         }
 
-        // ================= TELA DE TURMAS =================
+        // ================= TELA DE TURMAS (CLASSES) =================
         function renderizarTelaTurmas() {
             const container = document.getElementById('tela-conteudo');
             
             container.innerHTML = `
                 <header class="app-header">
-                    <h1>Minhas Turmas</h1>
+                    <h1>Classes</h1>
                     <div style="display: flex; gap: 4px; align-items: center;">
                         <button class="btn-primary" onclick="abrirModalOpcoesTurmas()" title="Gerenciar Turmas" style="background: none; border: none; color: #2563eb; cursor: pointer; padding: 4px;">
                             <span class="material-icons" style="font-size: 20px;">folder_shared</span>
@@ -219,34 +197,31 @@
                             <span class="material-icons" style="font-size: 20px;">filter_alt</span>
                         </button>
                         <button class="btn-primary" onclick="abrirModalTurma()">
-                            <span class="material-icons">add</span> Nova
+                            <span class="material-icons">add</span> Adicionar classe
                         </button>
                     </div>
                 </header>
                 <hr class="divider">
                 
                 <div id="form-turma" class="form-card" style="display: none;">
-                    <h3 id="titulo-modal-turma">Adicionar Nova Turma (Classe)</h3>
+                    <h3 id="titulo-modal-turma">Adicionar classe</h3>
                     <input type="hidden" id="edit-turma-index" value="">
-                    <input type="text" id="nome-turma" placeholder="Nome da Turma (ex: 8º Ano A)">
-                    <input type="text" id="serie-turma" placeholder="Série / Ano (ex: Ensino Fundamental)">
-                    <input type="text" id="local-turma" placeholder="Local (ex: Colégio Santa Clara)">
+                    
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Nome da classe *</label>
+                    <input type="text" id="nome-turma" placeholder="Ex: 8º Ano A">
+                    
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Descrição / Local (Opcional)</label>
+                    <input type="text" id="local-turma" placeholder="Ex: Colégio Santa Clara">
+                    
                     <div class="form-actions">
                         <button class="btn-text" onclick="fecharModalTurma()">Cancelar</button>
-                        <button class="btn-primary" onclick="salvarTurma()">Salvar</button>
+                        <button class="btn-primary" onclick="salvarTurma()">Adicionar</button>
                     </div>
                 </div>
 
                 <div id="modal-opcoes-turmas" class="form-card" style="display: none; background: #fff; margin-bottom: 10px;">
                     <h3 style="margin-bottom: 14px; font-size: 16px;">Gerenciar Turmas</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
-                        <button class="btn-primary" onclick="document.getElementById('csv-turmas-file').click()" style="background-color: #2563eb; justify-content: center;">
-                            <span class="material-icons">upload_file</span> Importar Planilha (CSV)
-                        </button>
-                        <input type="file" id="csv-turmas-file" accept=".csv" style="display: none;" onchange="importarTurmasCSV(event)">
-                        <button class="btn-primary" onclick="baixarModeloTurmasCSV()" style="background-color: #475569; justify-content: center;">
-                            <span class="material-icons">description</span> Baixar Modelo CSV
-                        </button>
                         <button class="btn-primary" onclick="exportarTurmasExcel()" style="background-color: #059669; justify-content: center;">
                             <span class="material-icons">download</span> Exportar Turmas (Excel)
                         </button>
@@ -262,7 +237,6 @@
                     <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
                         <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">Data <input type="radio" name="filtro-t-criterio" value="data" ${filtroTurmasCriterio === 'data' ? 'checked' : ''}></label>
                         <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">Nome <input type="radio" name="filtro-t-criterio" value="nome" ${filtroTurmasCriterio === 'nome' ? 'checked' : ''}></label>
-                        <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">Classe <input type="radio" name="filtro-t-criterio" value="classe" ${filtroTurmasCriterio === 'classe' ? 'checked' : ''}></label>
                     </div>
                     <label style="font-size: 13px; font-weight: bold; margin-bottom: 10px;">Ordem de classificação</label>
                     <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
@@ -292,17 +266,13 @@
             const listaContainer = document.getElementById('lista-turmas');
 
             if (turmas.length === 0) {
-                listaContainer.innerHTML = `<div class="empty-state"><span class="material-icons">folder_open</span><p><strong>Nenhuma turma cadastrada</strong></p></div>`;
+                listaContainer.innerHTML = `<div class="empty-state"><span class="material-icons">folder_open</span><p><strong>Nenhuma classe cadastrada</strong></p></div>`;
                 return;
             }
 
             turmas.sort((a, b) => {
-                let valA, valB;
-                if (filtroTurmasCriterio === 'nome' || filtroTurmasCriterio === 'classe') {
-                    valA = (a.nome || "").toLowerCase(); valB = (b.nome || "").toLowerCase();
-                } else {
-                    valA = a.timestamp || 0; valB = b.timestamp || 0;
-                }
+                let valA = (a.nome || "").toLowerCase(), valB = (b.nome || "").toLowerCase();
+                if (filtroTurmasCriterio === 'data') { valA = a.timestamp || 0; valB = b.timestamp || 0; }
                 if (valA < valB) return filtroTurmasOrdem === 'asc' ? -1 : 1;
                 if (valA > valB) return filtroTurmasOrdem === 'asc' ? 1 : -1;
                 return 0;
@@ -310,20 +280,29 @@
 
             listaContainer.innerHTML = '';
             turmas.forEach((turma, indexOriginal) => {
+                const qtdAlunos = turma.alunos ? turma.alunos.length : 0;
                 const item = document.createElement('div');
                 item.className = 'turma-card';
                 item.innerHTML = `
-                    <div class="turma-info" onclick="entrarNaTurma(${indexOriginal})" style="display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1;">
+                    <div class="turma-info" onclick="entrarNaTurma(${indexOriginal})" style="display: flex; align-items: center; gap: 15px; cursor: pointer; flex: 1;">
                         ${modoSelecaoTurmas ? `<input type="checkbox" class="turma-checkbox" value="${indexOriginal}" style="width: 18px; height: 18px;">` : ''}
-                        <span class="material-icons" style="color: #2563eb;">school</span>
-                        <div>
-                            <strong>${turma.nome}</strong>
-                            <small style="display: block; color: #64748b;">${turma.serie || 'Série'} • ${turma.alunos ? turma.alunos.length : 0} aluno(s)</small>
+                        
+                        <div style="flex: 1;">
+                            <strong style="font-size: 15px; color: #1e293b;">${turma.nome}</strong>
+                            <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; color: #64748b; font-size: 13px;">
+                                <span class="material-icons" style="font-size: 16px;">people_outline</span> ${qtdAlunos} 
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                            <span class="material-icons" style="color: #10b981; font-size: 18px;">check_circle</span>
+                            <span style="color: #2563eb; font-weight: bold; font-size: 13px;">Ver alunos</span>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 4px; ${modoSelecaoTurmas ? 'display:none;' : ''}">
-                        <button class="btn-text" onclick="abrirEditarTurma(event, ${indexOriginal})"><span class="material-icons" style="color:#2563eb;">edit</span></button>
-                        <button class="btn-text" onclick="deletarTurma(event, ${indexOriginal})"><span class="material-icons" style="color:#ef4444;">delete</span></button>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 4px; margin-left: 10px; border-left: 1px solid #e2e8f0; padding-left: 10px; ${modoSelecaoTurmas ? 'display:none;' : ''}">
+                        <button class="btn-text" onclick="abrirEditarTurma(event, ${indexOriginal})" style="padding: 2px;"><span class="material-icons" style="color:#64748b; font-size: 18px;">edit</span></button>
+                        <button class="btn-text" onclick="deletarTurma(event, ${indexOriginal})" style="padding: 2px;"><span class="material-icons" style="color:#ef4444; font-size: 18px;">delete</span></button>
                     </div>
                 `;
                 listaContainer.appendChild(item);
@@ -335,7 +314,7 @@
         function excluirTurmasSelecionadas() {
             const checkboxes = document.querySelectorAll('.turma-checkbox:checked');
             if (checkboxes.length === 0) return alert("Selecione pelo menos uma turma.");
-            if (confirm(`Deseja excluir ${checkboxes.length} turma(s)?`)) {
+            if (confirm(`Deseja excluir ${checkboxes.length} classe(s)?`)) {
                 const turmas = obterDados('turmas_app');
                 const indices = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a, b) => b - a);
                 indices.forEach(idx => turmas.splice(idx, 1));
@@ -359,43 +338,16 @@
 
         function exportarTurmasExcel() {
             const turmas = obterDados('turmas_app');
-            const dados = turmas.map(t => ({ "Nome": t.nome, "Série": t.serie, "Alunos": t.alunos ? t.alunos.length : 0 }));
+            const dados = turmas.map(t => ({ "Nome": t.nome, "Local": t.local, "Alunos": t.alunos ? t.alunos.length : 0 }));
             const ws = XLSX.utils.json_to_sheet(dados);
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Turmas");
-            XLSX.writeFile(wb, "turmas.xlsx"); fecharModalOpcoesTurmas();
-        }
-
-        function baixarModeloTurmasCSV() {
-            const csv = "data:text/csv;charset=utf-8,Nome da Turma,Serie,Local\n8º Ano A,Ensino Fundamental,Colégio";
-            const link = document.createElement("a"); link.setAttribute("href", encodeURI(csv));
-            link.setAttribute("download", "modelo_turmas.csv"); document.body.appendChild(link);
-            link.click(); link.remove(); fecharModalOpcoesTurmas();
-        }
-
-        function importarTurmasCSV(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const linhas = e.target.result.split(/\r\n|\n/); const turmas = obterDados('turmas_app'); let count = 0;
-                linhas.forEach((linha, idx) => {
-                    if (linha.trim() === "") return;
-                    const colunas = linha.split(/,|;/);
-                    if (idx === 0 && colunas.some(c => c.toLowerCase().includes('nome'))) return;
-                    if (colunas[0]) {
-                        turmas.push({ nome: colunas[0].trim(), serie: colunas[1] ? colunas[1].trim() : "", timestamp: Date.now(), alunos: [] });
-                        count++;
-                    }
-                });
-                salvarDados('turmas_app', turmas); renderizarTelaTurmas(); alert(`${count} turmas importadas!`); fecharModalOpcoesTurmas();
-            };
-            reader.readAsText(file, "UTF-8");
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Classes");
+            XLSX.writeFile(wb, "classes.xlsx"); fecharModalOpcoesTurmas();
         }
 
         function abrirModalTurma() {
             document.getElementById('edit-turma-index').value = "";
-            document.getElementById('titulo-modal-turma').innerText = "Nova Turma";
+            document.getElementById('titulo-modal-turma').innerText = "Adicionar classe";
             document.getElementById('nome-turma').value = "";
-            document.getElementById('serie-turma').value = "";
             document.getElementById('local-turma').value = "";
             document.getElementById('form-turma').style.display = 'block';
         }
@@ -404,9 +356,8 @@
             event.stopPropagation();
             const turmas = obterDados('turmas_app'); const t = turmas[index];
             document.getElementById('edit-turma-index').value = index;
-            document.getElementById('titulo-modal-turma').innerText = "Editar Turma";
+            document.getElementById('titulo-modal-turma').innerText = "Editar classe";
             document.getElementById('nome-turma').value = t.nome;
-            document.getElementById('serie-turma').value = t.serie || "";
             document.getElementById('local-turma').value = t.local || "";
             document.getElementById('form-turma').style.display = 'block';
         }
@@ -416,20 +367,19 @@
         function salvarTurma() {
             const idx = document.getElementById('edit-turma-index').value;
             const nome = document.getElementById('nome-turma').value.trim();
-            const serie = document.getElementById('serie-turma').value.trim();
             const local = document.getElementById('local-turma').value.trim();
 
             if (nome) {
                 const turmas = obterDados('turmas_app');
-                const dt = { nome, serie: serie || "Geral", local: local || "Escola", timestamp: idx === "" ? Date.now() : turmas[idx].timestamp, alunos: idx === "" ? [] : turmas[idx].alunos };
+                const dt = { nome, local: local || "", timestamp: idx === "" ? Date.now() : turmas[idx].timestamp, alunos: idx === "" ? [] : turmas[idx].alunos };
                 if (idx === "") turmas.push(dt); else turmas[idx] = dt;
                 salvarDados('turmas_app', turmas); renderizarListaTurmasProcessada(); fecharModalTurma();
-            } else alert("Insira o nome.");
+            } else alert("Insira o nome da classe.");
         }
 
         function deletarTurma(event, index) {
             event.stopPropagation();
-            if (confirm("Excluir esta turma?")) {
+            if (confirm("Excluir esta classe?")) {
                 const turmas = obterDados('turmas_app'); turmas.splice(index, 1);
                 salvarDados('turmas_app', turmas); renderizarListaTurmasProcessada();
             }
@@ -443,6 +393,7 @@
         function renderizarTelaAlunos() {
             const turmas = obterDados('turmas_app'); const turma = turmas[turmaAtualIndex];
             const container = document.getElementById('tela-conteudo');
+            
             container.innerHTML = `
                 <header class="app-header">
                     <button class="btn-text" onclick="voltarParaTurmas()" style="color: #2563eb;">← Voltar</button>
@@ -451,34 +402,45 @@
                         <button class="btn-text" onclick="abrirModalOpcoesAlunos()" style="color: #2563eb; padding: 4px;"><span class="material-icons">folder_shared</span></button>
                         <button class="btn-text" onclick="toggleModoSelecaoAlunos()" style="color: ${modoSelecaoAlunos ? '#ef4444' : '#64748b'}; padding: 4px;"><span class="material-icons">${modoSelecaoAlunos ? 'close' : 'delete_sweep'}</span></button>
                         <button class="btn-text" onclick="abrirModalFiltroAlunos()" style="color: #2563eb;"><span class="material-icons">filter_alt</span></button>
-                        <button class="btn-primary" onclick="abrirModalAluno()" style="padding:4px 8px;"><span class="material-icons" style="font-size: 16px;">add</span></button>
+                        <button class="btn-primary" onclick="abrirModalAluno()" style="padding:4px 8px;"><span class="material-icons" style="font-size: 16px;">add</span> Adicionar</button>
                     </div>
                 </header>
                 <hr class="divider">
 
                 <div id="form-aluno" class="form-card" style="display: none;">
-                    <h3 id="titulo-modal-aluno">Adicionar Aluno</h3>
+                    <h3 id="titulo-modal-aluno" style="margin-bottom: 15px;">Adicionar Aluno</h3>
                     <input type="hidden" id="edit-aluno-index" value="">
-                    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                        <input type="number" id="num-aluno" placeholder="Nº" style="width: 60px;">
-                        <input type="text" id="nome-aluno" placeholder="Nome Completo" style="flex: 1;">
-                    </div>
-                    <div class="form-actions">
-                        <button class="btn-text" onclick="fecharModalAluno()">Cancelar</button>
-                        <button class="btn-primary" onclick="salvarAluno()">Salvar</button>
+                    
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Núm. da lista *</label>
+                    <input type="number" id="num-aluno" placeholder="Ex: 1">
+                    
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Nome *</label>
+                    <input type="text" id="nome-aluno" placeholder="Nome do estudante">
+
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Núm. de telefone</label>
+                    <input type="text" id="telefone-aluno" placeholder="(Opcional)">
+
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Identificação do email</label>
+                    <input type="email" id="email-aluno" placeholder="(Opcional)">
+
+                    <div class="form-actions" style="margin-top: 15px;">
+                        <button class="btn-text" onclick="fecharModalAluno()" style="border: 1px solid #cbd5e1; border-radius: 8px;">Voltar</button>
+                        <button class="btn-primary" onclick="salvarAluno()">Adicionar</button>
                     </div>
                 </div>
 
                 <div id="modal-opcoes-alunos" class="form-card" style="display: none; background: #fff; margin-bottom: 10px;">
-                    <h3 style="margin-bottom: 14px; font-size: 16px;">Gerenciar Alunos</h3>
+                    <h3 style="margin-bottom: 14px; font-size: 16px;">Importar/Exportar alunos</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
                         <button class="btn-primary" onclick="document.getElementById('csv-file').click()" style="background-color: #2563eb; justify-content: center;">
-                            <span class="material-icons">upload_file</span> Importar Planilha (CSV)
+                            <span class="material-icons">upload_file</span> Importar CSV
                         </button>
                         <input type="file" id="csv-file" accept=".csv" style="display: none;" onchange="importarCSV(event)">
+                        
                         <button class="btn-primary" onclick="baixarModeloAlunosCSV()" style="background-color: #475569; justify-content: center;">
-                            <span class="material-icons">description</span> Baixar Modelo CSV
+                            <span class="material-icons">description</span> Baixar Modelo de Importação
                         </button>
+                        
                         <button class="btn-primary" onclick="exportarAlunosExcel()" style="background-color: #059669; justify-content: center;">
                             <span class="material-icons">download</span> Exportar Alunos (Excel)
                         </button>
@@ -517,27 +479,13 @@
             renderizarListaAlunosProcessada();
         }
 
-        function abrirModalOpcoesAlunos() { document.getElementById('modal-opcoes-alunos').style.display = 'block'; }
-        function fecharModalOpcoesAlunos() { document.getElementById('modal-opcoes-alunos').style.display = 'none'; }
-        function abrirModalFiltroAlunos() { document.getElementById('modal-filtro-alunos').style.display = 'block'; }
-        function fecharModalFiltroAlunos() { document.getElementById('modal-filtro-alunos').style.display = 'none'; }
-        function toggleModoSelecaoAlunos() { modoSelecaoAlunos = !modoSelecaoAlunos; renderizarTelaAlunos(); }
-
-        function aplicarFiltroAlunos() {
-            const c = document.querySelector('input[name="filtro-a-criterio"]:checked');
-            const o = document.querySelector('input[name="filtro-a-ordem"]:checked');
-            if(c) filtroAlunosCriterio = c.value;
-            if(o) filtroAlunosOrdem = o.value;
-            fecharModalFiltroAlunos(); renderizarListaAlunosProcessada();
-        }
-
         function renderizarListaAlunosProcessada() {
             const turmas = obterDados('turmas_app'); const turma = turmas[turmaAtualIndex];
             const listaContainer = document.getElementById('lista-alunos');
             let alunos = [...(turma.alunos || [])];
 
             if (alunos.length === 0) {
-                listaContainer.innerHTML = `<div class="empty-state"><span class="material-icons">person_outline</span><p><strong>Nenhum aluno</strong></p></div>`;
+                listaContainer.innerHTML = `<div class="empty-state"><span class="material-icons">person_outline</span><p><strong>Nenhum aluno adicionado.</strong></p><p style="font-size:12px;">Comece a adicionar alunos.</p></div>`;
                 return;
             }
 
@@ -553,35 +501,101 @@
             listaContainer.innerHTML = '';
             alunos.forEach((aluno) => {
                 const indexReal = turma.alunos.findIndex(item => item === aluno);
+                const letraInicial = (aluno.nome ? aluno.nome.charAt(0).toUpperCase() : '?');
+                
                 const item = document.createElement('div');
                 item.className = 'turma-card';
                 item.innerHTML = `
-                    <div class="turma-info" style="display: flex; align-items: center; gap: 10px;">
+                    <div class="turma-info" style="display: flex; align-items: center; gap: 12px; flex: 1;">
                         ${modoSelecaoAlunos ? `<input type="checkbox" class="aluno-checkbox" value="${indexReal}" style="width: 16px; height: 16px;">` : ''}
-                        <span style="font-weight: bold; color: #2563eb; width: 25px;">${aluno.numero}</span>
-                        <strong>${aluno.nome}</strong>
+                        
+                        <!-- Avatar Redondo EvalBee Style -->
+                        <div style="width: 36px; height: 36px; border-radius: 50%; background: #e2e8f0; color: #334155; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; border: 1px solid #cbd5e1;">
+                            ${letraInicial}
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column;">
+                            <strong style="color: #1e293b; font-size: 14px;">${aluno.nome.toUpperCase()}</strong>
+                            <div style="display: flex; align-items: center; gap: 4px; color: #64748b; font-size: 12px; margin-top: 2px;">
+                                <span class="material-icons" style="font-size: 14px;">format_list_numbered</span> ${aluno.numero}
+                                ${aluno.email ? ` • <span class="material-icons" style="font-size: 14px;">email</span>` : ''}
+                            </div>
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 4px; ${modoSelecaoAlunos ? 'display:none;' : ''}">
-                        <button class="btn-text" onclick="abrirEditarAluno(${indexReal})"><span class="material-icons" style="color: #2563eb;">edit</span></button>
-                        <button class="btn-text" onclick="deletarAluno(${indexReal})"><span class="material-icons" style="color: #ef4444;">delete</span></button>
+
+                    <div style="display: flex; gap: 4px; border-left: 1px solid #e2e8f0; padding-left: 8px; ${modoSelecaoAlunos ? 'display:none;' : ''}">
+                        <button class="btn-text" onclick="abrirEditarAluno(${indexReal})" style="padding: 4px;"><span class="material-icons" style="color: #64748b; font-size: 18px;">more_vert</span></button>
                     </div>
                 `;
                 listaContainer.appendChild(item);
             });
         }
 
-        function exportarAlunosExcel() {
-            const turmas = obterDados('turmas_app'); const turma = turmas[turmaAtualIndex];
-            const dados = (turma.alunos || []).map(a => ({ "Número": a.numero, "Nome": a.nome }));
-            const ws = XLSX.utils.json_to_sheet(dados); const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Alunos"); XLSX.writeFile(wb, `alunos_${turma.nome}.xlsx`);
-            fecharModalOpcoesAlunos();
+        function abrirModalAluno() {
+            document.getElementById('edit-aluno-index').value = "";
+            document.getElementById('titulo-modal-aluno').innerText = "Adicionar Aluno";
+            document.getElementById('num-aluno').value = ""; 
+            document.getElementById('nome-aluno').value = "";
+            document.getElementById('telefone-aluno').value = "";
+            document.getElementById('email-aluno').value = "";
+            document.getElementById('form-aluno').style.display = 'block';
         }
 
+        function abrirEditarAluno(index) {
+            const turmas = obterDados('turmas_app'); const aluno = turmas[turmaAtualIndex].alunos[index];
+            document.getElementById('edit-aluno-index').value = index;
+            document.getElementById('titulo-modal-aluno').innerText = "Editar Aluno";
+            document.getElementById('num-aluno').value = aluno.numero !== "--" ? aluno.numero : "";
+            document.getElementById('nome-aluno').value = aluno.nome || "";
+            document.getElementById('telefone-aluno').value = aluno.telefone || "";
+            document.getElementById('email-aluno').value = aluno.email || "";
+            document.getElementById('form-aluno').style.display = 'block';
+        }
+
+        function fecharModalAluno() { document.getElementById('form-aluno').style.display = 'none'; }
+
+        function salvarAluno() {
+            const idx = document.getElementById('edit-aluno-index').value;
+            const numero = document.getElementById('num-aluno').value.trim();
+            const nome = document.getElementById('nome-aluno').value.trim();
+            const telefone = document.getElementById('telefone-aluno').value.trim();
+            const email = document.getElementById('email-aluno').value.trim();
+
+            if (nome) {
+                const turmas = obterDados('turmas_app');
+                if(!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
+                const dt = { numero: numero || "--", nome, telefone, email };
+                
+                if (idx === "") turmas[turmaAtualIndex].alunos.push(dt); 
+                else turmas[turmaAtualIndex].alunos[idx] = Object.assign(turmas[turmaAtualIndex].alunos[idx], dt);
+                
+                salvarDados('turmas_app', turmas); 
+                fecharModalAluno(); 
+                renderizarListaAlunosProcessada();
+            } else {
+                alert("O Nome é obrigatório.");
+            }
+        }
+
+        // ================= FUNÇÕES DE IMPORTAÇÃO/EXPORTAÇÃO ATUALIZADAS PARA O MODELO EVALBEE =================
+        
         function baixarModeloAlunosCSV() {
-            const csv = "data:text/csv;charset=utf-8,Numero,Nome\n1,Ana Clara\n2,Carlos";
-            const link = document.createElement("a"); link.setAttribute("href", encodeURI(csv));
-            link.setAttribute("download", "modelo_alunos.csv"); document.body.appendChild(link); link.click(); link.remove();
+            const turmas = obterDados('turmas_app'); 
+            const turma = turmas[turmaAtualIndex];
+            const nomeTurma = turma ? turma.nome : "A2";
+            
+            // Modelo Exato com aspas duplas, idêntico ao EvalBee
+            const conteudoCSV = `"ROLLNO","NAME","CLASS","EMAILID","PHONENO"\n"1","ALUNO EXEMPLO","${nomeTurma}","email@exemplo.com","991234567"\n`;
+            
+            const blob = new Blob([conteudoCSV], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "student_export.csv");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            
             fecharModalOpcoesAlunos();
         }
 
@@ -589,19 +603,73 @@
             const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
-                const linhas = e.target.result.split(/\r\n|\n/); const turmas = obterDados('turmas_app');
+                const linhas = e.target.result.split(/\r\n|\n/); 
+                const turmas = obterDados('turmas_app');
                 if (!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
                 let count = 0;
-                linhas.forEach((linha, idx) => {
-                    if (linha.trim() === "") return;
-                    const col = linha.split(/,|;/);
-                    if (idx === 0 && col.some(c => c.toLowerCase().includes('nome'))) return;
-                    if (col.length >= 2) { turmas[turmaAtualIndex].alunos.push({ numero: col[0].trim(), nome: col[1].trim() }); count++; } 
-                    else if (col.length === 1) { turmas[turmaAtualIndex].alunos.push({ numero: "--", nome: col[0].trim() }); count++; }
+                
+                linhas.forEach((linhaOriginal, idx) => {
+                    if (linhaOriginal.trim() === "") return;
+                    
+                    // Remove as aspas duplas da linha inteira para facilitar o processamento
+                    const linhaLimpa = linhaOriginal.replace(/"/g, '');
+                    const col = linhaLimpa.split(/,|;/);
+                    
+                    // Pula o cabeçalho
+                    if (idx === 0 && (col.some(c => c.toUpperCase().includes('NAME')) || col.some(c => c.toUpperCase().includes('NOME')))) return;
+                    
+                    if (col.length >= 2) { 
+                        turmas[turmaAtualIndex].alunos.push({ 
+                            numero: col[0] ? col[0].trim() : "--", 
+                            nome: col[1] ? col[1].trim() : "Sem Nome",
+                            email: col[3] ? col[3].trim() : "",
+                            telefone: col[4] ? col[4].trim() : ""
+                        }); 
+                        count++; 
+                    } 
                 });
-                salvarDados('turmas_app', turmas); renderizarListaAlunosProcessada(); alert(`${count} alunos importados!`); fecharModalOpcoesAlunos();
+                
+                salvarDados('turmas_app', turmas); 
+                renderizarListaAlunosProcessada(); 
+                alert(`${count} alunos importados com sucesso!`); 
+                fecharModalOpcoesAlunos();
+                // Limpa o input file para permitir importar o mesmo arquivo novamente se necessário
+                document.getElementById('csv-file').value = '';
             };
             reader.readAsText(file, "UTF-8");
+        }
+
+        function exportarAlunosExcel() {
+            // Mantém a exportação em Excel (um grande diferencial frente ao app que só exporta CSV)
+            // Mas usamos exatamente os nomes das colunas originais do EvalBee
+            const turmas = obterDados('turmas_app'); const turma = turmas[turmaAtualIndex];
+            const dados = (turma.alunos || []).map(a => ({ 
+                "ROLLNO": a.numero, 
+                "NAME": a.nome, 
+                "CLASS": turma.nome, 
+                "EMAILID": a.email || "", 
+                "PHONENO": a.telefone || "" 
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(dados); 
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Alunos"); 
+            XLSX.writeFile(wb, `alunos_${turma.nome}.xlsx`);
+            fecharModalOpcoesAlunos();
+        }
+
+        function abrirModalOpcoesAlunos() { document.getElementById('modal-opcoes-alunos').style.display = 'block'; }
+        function fecharModalOpcoesAlunos() { document.getElementById('modal-opcoes-alunos').style.display = 'none'; }
+        function abrirModalFiltroAlunos() { document.getElementById('modal-filtro-alunos').style.display = 'block'; }
+        function fecharModalFiltroAlunos() { document.getElementById('modal-filtro-alunos').style.display = 'none'; }
+        function toggleModoSelecaoAlunos() { modoSelecaoAlunos = !modoSelecaoAlunos; renderizarTelaAlunos(); }
+
+        function aplicarFiltroAlunos() {
+            const c = document.querySelector('input[name="filtro-a-criterio"]:checked');
+            const o = document.querySelector('input[name="filtro-a-ordem"]:checked');
+            if(c) filtroAlunosCriterio = c.value;
+            if(o) filtroAlunosOrdem = o.value;
+            fecharModalFiltroAlunos(); renderizarListaAlunosProcessada();
         }
 
         function excluirAlunosSelecionados() {
@@ -614,44 +682,6 @@
                 salvarDados('turmas_app', turmas); modoSelecaoAlunos = false; renderizarTelaAlunos();
             }
         }
-
-        function abrirModalAluno() {
-            document.getElementById('edit-aluno-index').value = "";
-            document.getElementById('titulo-modal-aluno').innerText = "Adicionar Aluno";
-            document.getElementById('num-aluno').value = ""; document.getElementById('nome-aluno').value = "";
-            document.getElementById('form-aluno').style.display = 'block';
-        }
-
-        function abrirEditarAluno(index) {
-            const turmas = obterDados('turmas_app'); const aluno = turmas[turmaAtualIndex].alunos[index];
-            document.getElementById('edit-aluno-index').value = index;
-            document.getElementById('titulo-modal-aluno').innerText = "Editar Aluno";
-            document.getElementById('num-aluno').value = aluno.numero !== "--" ? aluno.numero : "";
-            document.getElementById('nome-aluno').value = aluno.nome;
-            document.getElementById('form-aluno').style.display = 'block';
-        }
-
-        function fecharModalAluno() { document.getElementById('form-aluno').style.display = 'none'; }
-
-        function salvarAluno() {
-            const idx = document.getElementById('edit-aluno-index').value;
-            const numero = document.getElementById('num-aluno').value.trim();
-            const nome = document.getElementById('nome-aluno').value.trim();
-            if (nome) {
-                const turmas = obterDados('turmas_app');
-                if(!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
-                const dt = { numero: numero || "--", nome };
-                if (idx === "") turmas[turmaAtualIndex].alunos.push(dt); else turmas[turmaAtualIndex].alunos[idx] = dt;
-                salvarDados('turmas_app', turmas); fecharModalAluno(); renderizarListaAlunosProcessada();
-            } else alert("Insira o nome.");
-        }
-
-        function deletarAluno(index) {
-            if (confirm("Remover aluno?")) {
-                const turmas = obterDados('turmas_app'); turmas[turmaAtualIndex].alunos.splice(index, 1);
-                salvarDados('turmas_app', turmas); renderizarListaAlunosProcessada();
-            }
-        }
         function voltarParaTurmas() { turmaAtualIndex = null; renderizarTelaTurmas(); }
 
         // ================= TELA DE PROVAS E BLOCOS =================
@@ -659,79 +689,54 @@
             const container = document.getElementById('tela-conteudo');
             const turmas = obterDados('turmas_app');
             let optionsTurmas = '<option value="">(Sem Turma Vinculada)</option>';
-            turmas.forEach((t, idx) => { optionsTurmas += `<option value="${idx}">${t.nome} (${t.serie || 'Geral'})</option>`; });
+            turmas.forEach((t, idx) => { optionsTurmas += `<option value="${idx}">${t.nome}</option>`; });
 
             container.innerHTML = `
                 <header class="app-header">
-                    <h1>Provas e Seções</h1>
+                    <h1>Exames</h1>
                     <div style="display: flex; gap: 4px; align-items: center;">
-                        <button class="btn-text" onclick="abrirModalOpcoesProvas()" style="color: #2563eb;"><span class="material-icons">folder_shared</span></button>
                         <button class="btn-text" onclick="toggleModoSelecaoProvas()" style="color: ${modoSelecaoProvas ? '#ef4444' : '#64748b'};"><span class="material-icons">${modoSelecaoProvas ? 'close' : 'delete_sweep'}</span></button>
-                        <button class="btn-text" onclick="abrirModalFiltroProvas()" style="color: #2563eb;"><span class="material-icons">filter_alt</span></button>
-                        <button class="btn-primary" onclick="abrirModalProva()"><span class="material-icons">add</span> Nova</button>
+                        <button class="btn-primary" onclick="abrirModalProva()"><span class="material-icons">add</span> Adicionar novo</button>
                     </div>
                 </header>
                 <hr class="divider">
 
                 <div id="form-prova" class="form-card" style="display: none;">
-                    <h3>Criar Prova</h3>
-                    <input type="text" id="nome-prova" placeholder="Nome da Prova">
+                    <h3>Criar Exame</h3>
+                    <input type="text" id="nome-prova" placeholder="Nome do Exame">
                     <label style="font-size: 12px; color: #64748b; font-weight: bold;">Turma:</label>
                     <select id="select-turma-prova">${optionsTurmas}</select>
                     
-                    <label style="font-size: 12px; color: #64748b; font-weight: bold;">Gerenciar Blocos / Matérias:</label>
+                    <label style="font-size: 12px; color: #64748b; font-weight: bold;">Disciplinas (Seções):</label>
                     <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 10px;">
                         <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px;">
                             <label style="font-size: 12px; font-weight: bold; color: #2563eb;">Questões por Bloco (máx 100):</label>
                             <input type="number" id="novo-bloco-qtd" value="10" min="1" max="100" style="padding: 10px; font-weight: bold; width: 100%; border: 2px solid #2563eb;">
                         </div>
-                        <div style="border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; margin-bottom: 8px; overflow: hidden;">
-                            <div onclick="toggleGavetaDisciplinas()" style="padding: 10px; background: #f1f5f9; display: flex; justify-content: space-between; cursor: pointer; font-weight: bold; font-size: 12px;">
-                                <span style="display: flex; align-items: center; gap: 6px;"><span class="material-icons" style="color: #2563eb;">library_books</span> Disciplinas Prontas</span>
-                                <span id="icone-seta-gaveta" class="material-icons">expand_more</span>
-                            </div>
-                            <div id="gaveta-disciplinas-conteudo" style="display: none; padding: 10px; background: #fafafa;">
-                                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                                    <button type="button" onclick="adicionarDisciplinaRapida('Matemática')" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">+ Matemática</button>
-                                    <button type="button" onclick="adicionarDisciplinaRapida('Português')" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">+ Português</button>
-                                    <button type="button" onclick="adicionarDisciplinaRapida('Física')" style="background: #fae8ff; color: #86198f; border: 1px solid #f5d0fe; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">+ Física</button>
-                                    <!-- Adicione as outras conforme necessário -->
-                                </div>
-                                <div style="display: flex; gap: 6px; margin-top:8px;">
-                                    <input type="text" id="novo-bloco-nome" placeholder="Nome personalizado..." style="margin-bottom: 0; flex: 1; padding: 8px;">
-                                    <button type="button" class="btn-primary" onclick="adicionarBlocoTempManual()" style="background-color: #059669;">+</button>
-                                </div>
-                            </div>
+                        <div style="display: flex; gap: 6px; margin-top:8px;">
+                            <input type="text" id="novo-bloco-nome" placeholder="Nome da Disciplina..." style="margin-bottom: 0; flex: 1; padding: 8px;">
+                            <button type="button" class="btn-primary" onclick="adicionarBlocoTempManual()" style="background-color: #059669;">+</button>
                         </div>
                     </div>
                     <div id="lista-blocos-temp" style="max-height: 120px; overflow-y: auto; background: #f1f5f9; padding: 8px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #cbd5e1;"></div>
                     <div class="form-actions">
                         <button class="btn-text" onclick="fecharModalProva()">Cancelar</button>
-                        <button class="btn-primary" onclick="salvarProva()">Salvar Prova</button>
+                        <button class="btn-primary" onclick="salvarProva()">Salvar Exame</button>
                     </div>
-                </div>
-
-                <!-- Filtros e Opções ocultados para simplificação visual do código aqui, mas mantidos iguais no funcionamento -->
-                <div id="modal-opcoes-provas" class="form-card" style="display: none;">
-                    <button class="btn-primary" onclick="exportarProvasExcel()" style="background-color: #059669; width: 100%; justify-content: center;"><span class="material-icons">download</span> Exportar Excel</button>
-                    <button class="btn-text" onclick="fecharModalOpcoesProvas()" style="width: 100%; margin-top: 10px;">Cancelar</button>
                 </div>
                 
                 <div class="lista-container" id="lista-provas"></div>
-                ${modoSelecaoProvas ? `<div style="padding: 10px; background: #fff; border-top: 1px solid #e2e8f0;"><button class="btn-primary" onclick="excluirProvasSelecionadas()" style="background: #ef4444; width: 100%; justify-content: center;">Excluir Provas Marcadas</button></div>` : ''}
+                ${modoSelecaoProvas ? `<div style="padding: 10px; background: #fff; border-top: 1px solid #e2e8f0;"><button class="btn-primary" onclick="excluirProvasSelecionadas()" style="background: #ef4444; width: 100%; justify-content: center;">Excluir Exames Marcados</button></div>` : ''}
             `;
             renderizarListaProvasProcessada();
         }
 
-        function abrirModalOpcoesProvas(){ document.getElementById('modal-opcoes-provas').style.display = 'block'; }
-        function fecharModalOpcoesProvas(){ document.getElementById('modal-opcoes-provas').style.display = 'none'; }
         function toggleModoSelecaoProvas(){ modoSelecaoProvas = !modoSelecaoProvas; renderizarTelaProvas(); }
-        function abrirModalFiltroProvas(){ /* Mantém a lógica */ }
         
         function renderizarListaProvasProcessada() {
             const provas = obterDados('provas_app');
             const lista = document.getElementById('lista-provas');
-            if (provas.length === 0) return lista.innerHTML = `<div class="empty-state"><span class="material-icons">quiz</span><p>Nenhuma prova cadastrada</p></div>`;
+            if (provas.length === 0) return lista.innerHTML = `<div class="empty-state"><span class="material-icons">quiz</span><p>Nenhum exame cadastrado</p></div>`;
             
             lista.innerHTML = '';
             provas.forEach((prova, index) => {
@@ -751,21 +756,24 @@
             });
         }
 
+        function excluirProvasSelecionadas() {
+            const checkboxes = document.querySelectorAll('.prova-checkbox:checked');
+            if (checkboxes.length === 0) return alert("Selecione um exame.");
+            if (confirm(`Excluir ${checkboxes.length} exame(s)?`)) {
+                const p = obterDados('provas_app');
+                const indices = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a,b)=>b-a);
+                indices.forEach(idx => p.splice(idx, 1));
+                salvarDados('provas_app', p); modoSelecaoProvas = false; renderizarTelaProvas();
+            }
+        }
+
         function abrirModalProva() {
-            blocosTemporarios = [{ materia: "MATEMÁTICA", qtd: 10 }];
+            blocosTemporarios = [{ materia: "GERAL", qtd: 10 }];
             atualizarListaBlocosTemp();
             document.getElementById('form-prova').style.display = 'block';
         }
         function fecharModalProva() { document.getElementById('form-prova').style.display = 'none'; }
         
-        function toggleGavetaDisciplinas() {
-            const c = document.getElementById('gaveta-disciplinas-conteudo');
-            c.style.display = (c.style.display === 'none' || c.style.display === '') ? 'block' : 'none';
-        }
-        function adicionarDisciplinaRapida(nome) {
-            let qtd = parseInt(document.getElementById('novo-bloco-qtd').value) || 10;
-            blocosTemporarios.push({ materia: nome.toUpperCase(), qtd }); atualizarListaBlocosTemp();
-        }
         function adicionarBlocoTempManual() {
             const n = document.getElementById('novo-bloco-nome').value.trim().toUpperCase();
             let qtd = parseInt(document.getElementById('novo-bloco-qtd').value) || 10;
@@ -823,28 +831,26 @@
             document.getElementById('tela-conteudo').innerHTML = `
                 <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0;">
                     <button class="btn-text" onclick="voltarParaProvas()" style="padding:0; margin-right:10px;"><span class="material-icons">arrow_back</span></button>
-                    <h1 style="font-size: 16px; font-weight: bold;">${prova.nome}</h1>
+                    <h1 style="font-size: 16px; font-weight: bold;">Detalhes do exame</h1>
                 </div>
                 <div style="padding: 16px; background: #f8fafc; flex: 1; overflow-y: auto;">
                     <div style="background: #fff; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <p style="font-size: 12px; color: #64748b; margin-bottom: 5px;">Digitalizados: ${digitados}/${totalAlunos}</p>
+                        <h2 style="font-size: 18px; margin-bottom: 10px;">${prova.nome}</h2>
+                        <p style="font-size: 12px; color: #64748b; margin-bottom: 5px;">Folha digitalizada: ${digitados}/${totalAlunos}</p>
                         <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px;"><div style="width: ${perc}%; background: #2563eb; height: 100%;"></div></div>
-                        <button onclick="simularLeituraCartao()" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 15px;">Comece a digitalizar (Simular)</button>
+                        <button onclick="simularLeituraCartao()" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 15px;">Escanear (Simulador)</button>
                     </div>
                     
-                    <h3 style="font-size: 14px; margin-bottom: 12px;">Gerenciamento</h3>
+                    <h3 style="font-size: 14px; margin-bottom: 12px;">Gerenciamento de exames</h3>
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
                         <div onclick="abrirSubTela('palavra-chave')" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
-                            <span class="material-icons" style="color: #2563eb; margin-bottom: 8px;">vpn_key</span><br><span style="font-size: 12px;">Gabarito</span>
-                        </div>
-                        <div onclick="abrirSubTela('configuracoes-exame')" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
-                            <span class="material-icons" style="color: #2563eb; margin-bottom: 8px;">settings</span><br><span style="font-size: 12px;">Configurações</span>
+                            <span class="material-icons" style="color: #2563eb; margin-bottom: 8px;">vpn_key</span><br><span style="font-size: 12px;">Palavra-chave</span>
                         </div>
                         <div onclick="abrirSubTela('ausentes')" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
                             <span class="material-icons" style="color: #ef4444; margin-bottom: 8px;">person_remove</span><br><span style="font-size: 12px;">Ausentes</span>
                         </div>
                         <div onclick="abrirSubTela('relatorios')" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
-                            <span class="material-icons" style="color: #10b981; margin-bottom: 8px;">analytics</span><br><span style="font-size: 12px;">Relatórios</span>
+                            <span class="material-icons" style="color: #10b981; margin-bottom: 8px;">analytics</span><br><span style="font-size: 12px;">Ver relatórios</span>
                         </div>
                         <div onclick="exportarExcelResultadosOficial()" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
                             <span class="material-icons" style="color: #10b981; margin-bottom: 8px;">description</span><br><span style="font-size: 12px;">Baixar Excel</span>
@@ -884,9 +890,6 @@
                 <div style="flex: 1; overflow-y: auto; background: #fff;">
                     ${listaHTML || '<div style="padding: 20px; text-align: center; color: #64748b;">Nenhum aluno ausente. Todos tiveram o cartão lido!</div>'}
                 </div>
-                <div style="padding: 12px 16px; background: #fff; border-top: 1px solid #e2e8f0;">
-                    <button onclick="abrirSubTela(null)" class="btn-primary" style="width: 100%; justify-content: center;">Fechar</button>
-                </div>
             `;
         }
 
@@ -908,7 +911,7 @@
             document.getElementById('tela-conteudo').innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
                     <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
-                    <h1 style="font-size: 16px;">Palavra-chave (Gabarito)</h1>
+                    <h1 style="font-size: 16px;">Palavra-chave</h1>
                     <button class="btn-text" onclick="document.getElementById('modal-tres-pontinhos').style.display='flex';" style="padding:0;"><span class="material-icons">more_vert</span></button>
                 </div>
                 <div style="flex: 1; overflow-y: auto;">${linhasHTML}</div>
@@ -919,7 +922,7 @@
         function mostrarSubMenuChave(tipo) { 
             document.getElementById('menu-base-chave').style.display='none'; 
             document.getElementById('submenu-conteudo-chave').style.display='block'; 
-            ['baixar','importacao','digitalizacao'].forEach(t => document.getElementById(`sub-${t}`).style.display = t===tipo ? 'block' : 'none');
+            ['baixar','importacao'].forEach(t => document.getElementById(`sub-${t}`).style.display = t===tipo ? 'block' : 'none');
         }
         function voltarMenuChave() { document.getElementById('menu-base-chave').style.display='flex'; document.getElementById('submenu-conteudo-chave').style.display='none'; }
 
@@ -933,11 +936,11 @@
             if(prova.digitalizadosCount < turma.alunos.length) {
                 let aluno = turma.alunos[prova.digitalizadosCount];
                 const alts = ['A','B','C','D','E'];
-                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.3 ? correta : alts[Math.floor(Math.random()*5)]); // Viés de acerto de 70%
+                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.3 ? correta : alts[Math.floor(Math.random()*5)]); // Viés de acerto
                 prova.digitalizadosCount++;
                 salvarDados('turmas_app', turmas); salvarDados('provas_app', provas);
                 alert(`Cartão lido: ${aluno.nome}`); renderizarTelaDetalheProva();
-            } else alert("Todos já lidos!");
+            } else alert("Todos os cartões já foram lidos!");
         }
 
         // ================= RELATÓRIOS E CALCULO =================
@@ -960,7 +963,7 @@
             const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
             let html = '';
             
-            let ranqueados = alunos.map(a => ({...a, stats: calcularEstatisticasAluno(a, prova)})).sort((a,b)=>b.stats.marcas - a.stats.marcas);
+            let ranqueados = alunos.map(a => ({...a, stats: calcularEstatisticasAluno(a, prova)})).filter(a => a.respostasOMR).sort((a,b)=>b.stats.marcas - a.stats.marcas);
             
             ranqueados.forEach((a, rank) => {
                 html += `
@@ -980,7 +983,7 @@
             document.getElementById('tela-conteudo').innerHTML = `
                 <div style="display: flex; align-items: center; padding: 12px; background: #fff; border-bottom: 1px solid #e2e8f0;">
                     <button class="btn-text" onclick="abrirSubTela(null)"><span class="material-icons">arrow_back</span></button>
-                    <h1>Relatórios</h1>
+                    <h1>Ver relatórios</h1>
                 </div>
                 <div style="flex:1; overflow-y:auto; background:#f1f5f9;">${html || '<p style="padding:20px; text-align:center;">Nenhum cartão escaneado.</p>'}</div>
             `;
@@ -989,7 +992,7 @@
         function renderizarTelaRelatorioDetalheAluno() {
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
-            let ranqueados = alunos.map((a, originalIndex) => ({...a, originalIndex, stats: calcularEstatisticasAluno(a, prova)})).sort((a,b)=>b.stats.marcas - a.stats.marcas);
+            let ranqueados = alunos.map((a, originalIndex) => ({...a, originalIndex, stats: calcularEstatisticasAluno(a, prova)})).filter(a => a.respostasOMR).sort((a,b)=>b.stats.marcas - a.stats.marcas);
             if(ranqueados.length === 0) return abrirSubTela('relatorios');
 
             if(alunoRelatorioIndex < 0) alunoRelatorioIndex = ranqueados.length - 1;
@@ -1022,7 +1025,6 @@
             const idxOriginal = window.alunoEditandoIdx;
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome); const aluno = turma.alunos[idxOriginal];
-            if (!aluno.respostasOMR) aluno.respostasOMR = [...prova.gabarito];
 
             let html = '';
             for (let i = 0; i < prova.gabarito.length; i++) {
@@ -1049,14 +1051,15 @@
             salvarDados('turmas_app', turmas); renderizarTelaEditarRespostasAluno();
         }
 
-        // ================= EXPORTAR OFICIAL =================
+        // ================= EXPORTAR EXCEL =================
         function exportarExcelResultadosOficial() {
             const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
-            if (alunos.length === 0) return alert("Sem alunos.");
+            const lidos = alunos.filter(a => a.respostasOMR);
+            if (lidos.length === 0) return alert("Nenhum cartão lido para exportar.");
 
             let dados = [];
-            alunos.forEach(a => {
+            lidos.forEach(a => {
                 const s = calcularEstatisticasAluno(a, prova);
                 dados.push({ "Nome": a.nome, "Matrícula": a.numero, "Nota": s.marcas, "Corretas": s.corretas, "Incorretas": s.incorretas });
             });
@@ -1067,11 +1070,11 @@
         // ================= IMPRESSÃO OMR NATIVA EM BLOCO =================
         function renderizarTelaGeradorCartoesLote() {
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app');
-            let oT = '<option value="">Turma...</option>'; turmas.forEach((t,i)=> oT += `<option value="${i}">${t.nome}</option>`);
-            let oP = '<option value="">Prova...</option>'; provas.forEach((p,i)=> oP += `<option value="${i}">${p.nome}</option>`);
+            let oT = '<option value="">Selecione a Classe...</option>'; turmas.forEach((t,i)=> oT += `<option value="${i}">${t.nome}</option>`);
+            let oP = '<option value="">Selecione o Exame...</option>'; provas.forEach((p,i)=> oP += `<option value="${i}">${p.nome}</option>`);
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div class="app-header"><h1>Imprimir OMR</h1></div>
+                <div class="app-header"><h1>Cartões OMR (PDF)</h1></div>
                 <div class="form-card">
                     <select id="sel-t-print">${oT}</select>
                     <select id="sel-p-print">${oP}</select>
@@ -1082,12 +1085,12 @@
 
         function gerarCartoesTurma() {
             const tIdx = document.getElementById('sel-t-print').value; const pIdx = document.getElementById('sel-p-print').value;
-            if(tIdx==="" || pIdx==="") return alert("Selecione Turma e Prova.");
+            if(tIdx==="" || pIdx==="") return alert("Selecione a Classe e o Exame.");
             
             const turma = obterDados('turmas_app')[tIdx]; const prova = obterDados('provas_app')[pIdx];
-            if(!turma.alunos || turma.alunos.length === 0) return alert("Turma vazia.");
+            if(!turma.alunos || turma.alunos.length === 0) return alert("A Classe está vazia.");
 
-            let cartoesHTML = `<div class="no-print" style="padding:10px; background:#fff; text-align:center;"><button class="btn-primary" onclick="window.print()">Imprimir Agora</button><button onclick="document.getElementById('preview-cartoes-container').style.display='none'; document.getElementById('app').style.display='flex';">Voltar</button></div>`;
+            let cartoesHTML = `<div class="no-print" style="padding:15px; background:#fff; text-align:center; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px;"><button class="btn-primary" onclick="window.print()" style="margin: 0 auto 10px auto;">Imprimir Agora (Ctrl+P)</button><button onclick="document.getElementById('preview-cartoes-container').style.display='none'; document.getElementById('app').style.display='flex';" class="btn-text" style="border: 1px solid #cbd5e1; border-radius: 8px;">Voltar</button></div>`;
 
             turma.alunos.forEach(aluno => {
                 let blocosHTML = '';
@@ -1101,10 +1104,10 @@
 
                 cartoesHTML += `
                     <div class="omr-sheet" style="border:2px solid #000; padding:15px; border-radius:5px; height:100%; display:flex; flex-direction:column; position:relative;">
-                        <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:10px;"><h3 style="font-size:14px; margin:0;">CARTÃO OMR</h3><p style="font-size:10px; margin:3px 0;">${prova.nome}</p></div>
-                        <div style="border:1px solid #000; padding:5px; font-size:10px; margin-bottom:10px; background:#f8fafc;"><strong>NOME:</strong> ${aluno.nome}<br><strong>MATRÍCULA:</strong> ${aluno.numero||'--'} | <strong>TURMA:</strong> ${turma.nome}</div>
+                        <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:10px;"><h3 style="font-size:14px; margin:0;">CARTÃO DE RESPOSTAS OMR</h3><p style="font-size:10px; margin:3px 0;">${prova.nome}</p></div>
+                        <div style="border:1px solid #000; padding:5px; font-size:10px; margin-bottom:10px; background:#f9fafb;"><strong>NOME:</strong> ${aluno.nome.toUpperCase()}<br><strong>MATRÍCULA:</strong> ${aluno.numero||'--'} | <strong>CLASSE:</strong> ${turma.nome.toUpperCase()}</div>
                         <div style="column-count: 3; column-gap: 15px; flex:1;">${blocosHTML}</div>
-                        <!-- Marcadores pretos -->
+                        <!-- Marcadores pretos (essenciais para leitura ótica por app) -->
                         <div style="position:absolute; top:10px; left:10px; width:15px; height:15px; background:#000;"></div>
                         <div style="position:absolute; top:10px; right:10px; width:15px; height:15px; background:#000;"></div>
                         <div style="position:absolute; bottom:10px; left:10px; width:15px; height:15px; background:#000;"></div>
