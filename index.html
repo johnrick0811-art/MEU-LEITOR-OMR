@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Cartões - EvalBee Style Master v7</title>
+    <title>Gerador de Cartões - EvalBee Style Master v7 (Corrigido)</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -316,20 +316,26 @@
                 return;
             }
 
-            turmas.sort((a, b) => {
-                let valA = (a.nome || "").toLowerCase(), valB = (b.nome || "").toLowerCase();
-                if (filtroTurmasCriterio === 'data') { valA = a.timestamp || 0; valB = b.timestamp || 0; }
+            // CORREÇÃO: Mapear o índice original antes de ordenar para evitar o Bug de Indexação
+            let turmasComIndex = turmas.map((t, idx) => ({ t, idx }));
+
+            turmasComIndex.sort((a, b) => {
+                let valA = (a.t.nome || "").toLowerCase(), valB = (b.t.nome || "").toLowerCase();
+                if (filtroTurmasCriterio === 'data') { valA = a.t.timestamp || 0; valB = b.t.timestamp || 0; }
                 if (valA < valB) return filtroTurmasOrdem === 'asc' ? -1 : 1;
                 if (valA > valB) return filtroTurmasOrdem === 'asc' ? 1 : -1;
                 return 0;
             });
 
             listaContainer.innerHTML = '';
-            turmas.forEach((turma, indexOriginal) => {
+            turmasComIndex.forEach((item) => {
+                const turma = item.t;
+                const indexOriginal = item.idx;
+                
                 const qtdAlunos = turma.alunos ? turma.alunos.length : 0;
-                const item = document.createElement('div');
-                item.className = 'turma-card';
-                item.innerHTML = `
+                const div = document.createElement('div');
+                div.className = 'turma-card';
+                div.innerHTML = `
                     <div class="turma-info" onclick="entrarNaTurma(${indexOriginal})" style="display: flex; align-items: center; gap: 15px; cursor: pointer; flex: 1;">
                         ${modoSelecaoTurmas ? `<input type="checkbox" class="turma-checkbox" value="${indexOriginal}" style="width: 18px; height: 18px;">` : ''}
                         
@@ -351,7 +357,7 @@
                         <button class="btn-text" onclick="deletarTurma(event, ${indexOriginal})" style="padding: 2px;"><span class="material-icons" style="color:#ef4444; font-size: 18px;">delete</span></button>
                     </div>
                 `;
-                listaContainer.appendChild(item);
+                listaContainer.appendChild(div);
             });
         }
 
@@ -528,30 +534,33 @@
         function renderizarListaAlunosProcessada() {
             const turmas = obterDados('turmas_app'); const turma = turmas[turmaAtualIndex];
             const listaContainer = document.getElementById('lista-alunos');
-            let alunos = [...(turma.alunos || [])];
-
-            if (alunos.length === 0) {
+            
+            if (!turma.alunos || turma.alunos.length === 0) {
                 listaContainer.innerHTML = `<div class="empty-state"><span class="material-icons">person_outline</span><p><strong>Nenhum aluno adicionado.</strong></p><p style="font-size:12px;">Comece a adicionar alunos.</p></div>`;
                 return;
             }
 
-            alunos.sort((a, b) => {
+            // CORREÇÃO: Mapear o índice original antes de ordenar para evitar o Bug de Indexação
+            let alunosComIndex = turma.alunos.map((a, idx) => ({ a, idx }));
+
+            alunosComIndex.sort((itemA, itemB) => {
                 let valA, valB;
-                if (filtroAlunosCriterio === 'numero') { valA = parseInt(a.numero)||9999; valB = parseInt(b.numero)||9999; } 
-                else { valA = (a.nome||"").toLowerCase(); valB = (b.nome||"").toLowerCase(); }
+                if (filtroAlunosCriterio === 'numero') { valA = parseInt(itemA.a.numero)||9999; valB = parseInt(itemB.a.numero)||9999; } 
+                else { valA = (itemA.a.nome||"").toLowerCase(); valB = (itemB.a.nome||"").toLowerCase(); }
                 if (valA < valB) return filtroAlunosOrdem === 'asc' ? -1 : 1;
                 if (valA > valB) return filtroAlunosOrdem === 'asc' ? 1 : -1;
                 return 0;
             });
 
             listaContainer.innerHTML = '';
-            alunos.forEach((aluno) => {
-                const indexReal = turma.alunos.findIndex(item => item === aluno);
+            alunosComIndex.forEach((item) => {
+                const aluno = item.a;
+                const indexReal = item.idx;
                 const letraInicial = (aluno.nome ? aluno.nome.charAt(0).toUpperCase() : '?');
                 
-                const item = document.createElement('div');
-                item.className = 'turma-card';
-                item.innerHTML = `
+                const div = document.createElement('div');
+                div.className = 'turma-card';
+                div.innerHTML = `
                     <div class="turma-info" style="display: flex; align-items: center; gap: 12px; flex: 1;">
                         ${modoSelecaoAlunos ? `<input type="checkbox" class="aluno-checkbox" value="${indexReal}" style="width: 16px; height: 16px;">` : ''}
                         
@@ -572,7 +581,7 @@
                         <button class="btn-text" onclick="abrirEditarAluno(${indexReal})" style="padding: 4px;"><span class="material-icons" style="color: #64748b; font-size: 18px;">more_vert</span></button>
                     </div>
                 `;
-                listaContainer.appendChild(item);
+                listaContainer.appendChild(div);
             });
         }
 
@@ -628,9 +637,7 @@
             if (idx === "") {
                 turmas[turmaAtualIndex].alunos.push(dt); 
             } else {
-                const realIdx = turmas[turmaAtualIndex].alunos.findIndex(item => item === turmas[turmaAtualIndex].alunos[idx]);
-                if(realIdx !== -1) turmas[turmaAtualIndex].alunos[realIdx] = Object.assign(turmas[turmaAtualIndex].alunos[realIdx], dt);
-                else turmas[turmaAtualIndex].alunos.push(dt);
+                turmas[turmaAtualIndex].alunos[idx] = Object.assign(turmas[turmaAtualIndex].alunos[idx], dt);
             }
             
             salvarDados('turmas_app', turmas); 
