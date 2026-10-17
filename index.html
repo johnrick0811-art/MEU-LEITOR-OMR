@@ -554,6 +554,7 @@
 
         function fecharModalAluno() { document.getElementById('form-aluno').style.display = 'none'; }
 
+        // ================= VALIDAÇÃO COM OPÇÃO DE SUBSTITUIÇÃO =================
         function salvarAluno() {
             const idx = document.getElementById('edit-aluno-index').value;
             const numero = document.getElementById('num-aluno').value.trim();
@@ -561,30 +562,58 @@
             const telefone = document.getElementById('telefone-aluno').value.trim();
             const email = document.getElementById('email-aluno').value.trim();
 
-            if (nome) {
-                const turmas = obterDados('turmas_app');
-                if(!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
-                const dt = { numero: numero || "--", nome, telefone, email };
-                
-                if (idx === "") turmas[turmaAtualIndex].alunos.push(dt); 
-                else turmas[turmaAtualIndex].alunos[idx] = Object.assign(turmas[turmaAtualIndex].alunos[idx], dt);
-                
-                salvarDados('turmas_app', turmas); 
-                fecharModalAluno(); 
-                renderizarListaAlunosProcessada();
-            } else {
+            if (!nome) {
                 alert("O Nome é obrigatório.");
+                return;
             }
+
+            if (!numero) {
+                alert("O Número da lista é obrigatório.");
+                return;
+            }
+
+            const turmas = obterDados('turmas_app');
+            if (!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
+
+            // Verifica se já existe um aluno com a mesma frequência na turma
+            const indexExistente = turmas[turmaAtualIndex].alunos.findIndex((a, index) => {
+                if (idx !== "" && index === parseInt(idx)) return false;
+                return String(a.numero).trim() === String(numero).trim();
+            });
+
+            if (indexExistente !== -1) {
+                const alunoAntigo = turmas[turmaAtualIndex].alunos[indexExistente];
+                const desejaSubstituir = confirm(`O número de frequência ${numero} já pertence ao aluno "${alunoAntigo.nome.toUpperCase()}".\n\nDeseja substituir o aluno anterior por "${nome.toUpperCase()}"?`);
+                
+                if (!desejaSubstituir) {
+                    return; // Cancela a operação
+                } else {
+                    // Remove o aluno anterior para dar lugar ao novo na mesma frequência
+                    turmas[turmaAtualIndex].alunos.splice(indexExistente, 1);
+                }
+            }
+
+            const dt = { numero, nome, telefone, email };
+            
+            if (idx === "") {
+                turmas[turmaAtualIndex].alunos.push(dt); 
+            } else {
+                // Se era edição e o índice mudou, atualiza
+                const realIdx = turmas[turmaAtualIndex].alunos.findIndex(item => item === turmas[turmaAtualIndex].alunos[idx]);
+                if(realIdx !== -1) turmas[turmaAtualIndex].alunos[realIdx] = Object.assign(turmas[turmaAtualIndex].alunos[realIdx], dt);
+                else turmas[turmaAtualIndex].alunos.push(dt);
+            }
+            
+            salvarDados('turmas_app', turmas); 
+            fecharModalAluno(); 
+            renderizarListaAlunosProcessada();
         }
 
-        // ================= FUNÇÕES DE IMPORTAÇÃO/EXPORTAÇÃO ATUALIZADAS PARA O MODELO EVALBEE =================
-        
         function baixarModeloAlunosCSV() {
             const turmas = obterDados('turmas_app'); 
             const turma = turmas[turmaAtualIndex];
             const nomeTurma = turma ? turma.nome : "A2";
             
-            // Modelo Exato com aspas duplas, idêntico ao EvalBee
             const conteudoCSV = `"ROLLNO","NAME","CLASS","EMAILID","PHONENO"\n"1","ALUNO EXEMPLO","${nomeTurma}","email@exemplo.com","991234567"\n`;
             
             const blob = new Blob([conteudoCSV], { type: 'text/csv;charset=utf-8;' });
@@ -607,41 +636,60 @@
                 const turmas = obterDados('turmas_app');
                 if (!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
                 let count = 0;
+                let substituidos = 0;
                 
                 linhas.forEach((linhaOriginal, idx) => {
                     if (linhaOriginal.trim() === "") return;
                     
-                    // Remove as aspas duplas da linha inteira para facilitar o processamento
                     const linhaLimpa = linhaOriginal.replace(/"/g, '');
                     const col = linhaLimpa.split(/,|;/);
                     
-                    // Pula o cabeçalho
                     if (idx === 0 && (col.some(c => c.toUpperCase().includes('NAME')) || col.some(c => c.toUpperCase().includes('NOME')))) return;
                     
-                    if (col.length >= 2) { 
-                        turmas[turmaAtualIndex].alunos.push({ 
-                            numero: col[0] ? col[0].trim() : "--", 
-                            nome: col[1] ? col[1].trim() : "Sem Nome",
-                            email: col[3] ? col[3].trim() : "",
-                            telefone: col[4] ? col[4].trim() : ""
-                        }); 
-                        count++; 
+                    if (col.length >= 2) {
+                        const numCSV = col[0] ? col[0].trim() : "--";
+                        const nomeCSV = col[1] ? col[1].trim() : "Sem Nome";
+                        const emailCSV = col[3] ? col[3].trim() : "";
+                        const telCSV = col[4] ? col[4].trim() : "";
+
+                        // Procura se já tem alguém com esse número
+                        const indexExistente = turmas[turmaAtualIndex].alunos.findIndex(a => String(a.numero).trim() === String(numCSV).trim());
+
+                        if (indexExistente !== -1) {
+                            // Substitui automaticamente no caso de importação em lote por CSV
+                            turmas[turmaAtualIndex].alunos[indexExistente] = {
+                                numero: numCSV,
+                                nome: nomeCSV,
+                                email: emailCSV,
+                                telefone: telCSV
+                            };
+                            substituidos++;
+                        } else {
+                            turmas[turmaAtualIndex].alunos.push({ 
+                                numero: numCSV, 
+                                nome: nomeCSV,
+                                email: emailCSV,
+                                telefone: telCSV
+                            }); 
+                            count++; 
+                        }
                     } 
                 });
                 
                 salvarDados('turmas_app', turmas); 
                 renderizarListaAlunosProcessada(); 
-                alert(`${count} alunos importados com sucesso!`); 
+                
+                let msg = `${count} alunos novos importados!`;
+                if (substituidos > 0) msg += ` (${substituidos} aluno(s) anterior(es) foram substituídos por conflito de frequência).`;
+                alert(msg);
+                
                 fecharModalOpcoesAlunos();
-                // Limpa o input file para permitir importar o mesmo arquivo novamente se necessário
                 document.getElementById('csv-file').value = '';
             };
             reader.readAsText(file, "UTF-8");
         }
 
         function exportarAlunosExcel() {
-            // Mantém a exportação em Excel (um grande diferencial frente ao app que só exporta CSV)
-            // Mas usamos exatamente os nomes das colunas originais do EvalBee
             const turmas = obterDados('turmas_app'); const turma = turmas[turmaAtualIndex];
             const dados = (turma.alunos || []).map(a => ({ 
                 "ROLLNO": a.numero, 
@@ -860,7 +908,7 @@
             `;
         }
 
-        // ================= NOVIDADE: TELA DE AUSENTES =================
+        // ================= TELA DE AUSENTES =================
         function renderizarTelaAusentes() {
             const provas = obterDados('provas_app');
             const turmas = obterDados('turmas_app');
@@ -936,7 +984,7 @@
             if(prova.digitalizadosCount < turma.alunos.length) {
                 let aluno = turma.alunos[prova.digitalizadosCount];
                 const alts = ['A','B','C','D','E'];
-                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.3 ? correta : alts[Math.floor(Math.random()*5)]); // Viés de acerto
+                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.3 ? correta : alts[Math.floor(Math.random()*5)]);
                 prova.digitalizadosCount++;
                 salvarDados('turmas_app', turmas); salvarDados('provas_app', provas);
                 alert(`Cartão lido: ${aluno.nome}`); renderizarTelaDetalheProva();
