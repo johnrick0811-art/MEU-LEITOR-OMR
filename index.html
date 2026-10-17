@@ -575,7 +575,6 @@
             const turmas = obterDados('turmas_app');
             if (!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
 
-            // Verifica se já existe um aluno com a mesma frequência na turma
             const indexExistente = turmas[turmaAtualIndex].alunos.findIndex((a, index) => {
                 if (idx !== "" && index === parseInt(idx)) return false;
                 return String(a.numero).trim() === String(numero).trim();
@@ -586,9 +585,8 @@
                 const desejaSubstituir = confirm(`O número de frequência ${numero} já pertence ao aluno "${alunoAntigo.nome.toUpperCase()}".\n\nDeseja substituir o aluno anterior por "${nome.toUpperCase()}"?`);
                 
                 if (!desejaSubstituir) {
-                    return; // Cancela a operação
+                    return; 
                 } else {
-                    // Remove o aluno anterior para dar lugar ao novo na mesma frequência
                     turmas[turmaAtualIndex].alunos.splice(indexExistente, 1);
                 }
             }
@@ -598,7 +596,6 @@
             if (idx === "") {
                 turmas[turmaAtualIndex].alunos.push(dt); 
             } else {
-                // Se era edição e o índice mudou, atualiza
                 const realIdx = turmas[turmaAtualIndex].alunos.findIndex(item => item === turmas[turmaAtualIndex].alunos[idx]);
                 if(realIdx !== -1) turmas[turmaAtualIndex].alunos[realIdx] = Object.assign(turmas[turmaAtualIndex].alunos[realIdx], dt);
                 else turmas[turmaAtualIndex].alunos.push(dt);
@@ -652,11 +649,9 @@
                         const emailCSV = col[3] ? col[3].trim() : "";
                         const telCSV = col[4] ? col[4].trim() : "";
 
-                        // Procura se já tem alguém com esse número
                         const indexExistente = turmas[turmaAtualIndex].alunos.findIndex(a => String(a.numero).trim() === String(numCSV).trim());
 
                         if (indexExistente !== -1) {
-                            // Substitui automaticamente no caso de importação em lote por CSV
                             turmas[turmaAtualIndex].alunos[indexExistente] = {
                                 numero: numCSV,
                                 nome: nomeCSV,
@@ -837,7 +832,7 @@
                 html += `<div style="display:flex; justify-content:space-between; background:#fff; padding:6px; margin-bottom:4px; border:1px solid #cbd5e1; font-size:13px; border-radius:4px;">
                             <span>${b.materia} (${b.qtd} Q)</span>
                             <button onclick="removerBlocoTemp(${idx})" style="border:none; background:none; color:red;">X</button>
-                         </div>`;
+                       </div>`;
             });
             container.innerHTML = html;
         }
@@ -967,12 +962,73 @@
         }
         function mudarRespostaGabarito(i, alt) { const p = obterDados('provas_app'); p[provaAtualIndex].gabarito[i] = alt; salvarDados('provas_app', p); renderizarTelaPalavraChave(); }
         function fecharModalTresPontinhos() { document.getElementById('modal-tres-pontinhos').style.display='none'; }
+        
         function mostrarSubMenuChave(tipo) { 
             document.getElementById('menu-base-chave').style.display='none'; 
             document.getElementById('submenu-conteudo-chave').style.display='block'; 
             ['baixar','importacao'].forEach(t => document.getElementById(`sub-${t}`).style.display = t===tipo ? 'block' : 'none');
         }
         function voltarMenuChave() { document.getElementById('menu-base-chave').style.display='flex'; document.getElementById('submenu-conteudo-chave').style.display='none'; }
+
+        // ================= FUNÇÕES DE EXPORTAR E IMPORTAR GABARITO (CSV/PDF) =================
+        function executarBaixarChave(formato) {
+            const provas = obterDados('provas_app');
+            const prova = provas[provaAtualIndex];
+            fecharModalTresPontinhos();
+
+            if (formato === 'csv') {
+                let csvContent = "Q,KEY\n";
+                prova.gabarito.forEach((resp, i) => {
+                    csvContent += `${i + 1},${resp}\n`;
+                });
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `${prova.nome}_gab.csv`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            } else if (formato === 'pdf') {
+                window.print();
+            }
+        }
+
+        function processarImportacaoChaveCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const linhas = e.target.result.split(/\r\n|\n/);
+                const provas = obterDados('provas_app');
+                const prova = provas[provaAtualIndex];
+                let atualizadas = 0;
+
+                linhas.forEach((linha, idx) => {
+                    if (linha.trim() === "") return;
+                    const limpa = linha.replace(/"/g, '');
+                    const col = limpa.split(/,|;/);
+                    if (idx === 0 && (col[0].toUpperCase().includes('Q') || col[0].toUpperCase().includes('QUESTAO'))) return;
+
+                    if (col.length >= 2) {
+                        const qNum = parseInt(col[0].trim()) - 1;
+                        const resp = col[1].trim().toUpperCase();
+                        if (!isNaN(qNum) && qNum >= 0 && qNum < prova.gabarito.length && ['A','B','C','D','E'].includes(resp)) {
+                            prova.gabarito[qNum] = resp;
+                            atualizadas++;
+                        }
+                    }
+                });
+
+                salvarDados('provas_app', provas);
+                fecharModalTresPontinhos();
+                voltarMenuChave();
+                renderizarTelaPalavraChave();
+                alert(`${atualizadas} respostas do gabarito atualizadas com sucesso!`);
+                document.getElementById('input-arquivo-chave').value = '';
+            };
+            reader.readAsText(file, "UTF-8");
+        }
 
         // ================= SIMULAR LEITURA (MOTOR) =================
         function simularLeituraCartao() {
