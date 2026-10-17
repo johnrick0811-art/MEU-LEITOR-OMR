@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Cartões - EvalBee Style</title>
+    <title>Gerador de Cartões - EvalBee Style Completo</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -40,7 +40,7 @@
 <body>
 
     <div class="app-container no-print" id="app">
-        <div id="tela-conteudo" style="display: flex; flex-direction: column; height: 100%;">
+        <div id="tela-conteudo" style="display: flex; flex-direction: column; height: 100%; flex: 1; overflow: hidden;">
             <!-- Renderizado via JavaScript -->
         </div>
 
@@ -60,11 +60,11 @@
         </nav>
     </div>
 
-    <!-- Modal Base (Três Pontinhos / Chaves) -->
+    <!-- Modal Base (Chaves / Opções de Gabarito) -->
     <div id="modal-tres-pontinhos" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: flex-end; justify-content: center;" class="no-print">
         <div style="background: #fff; width: 100%; max-width: 500px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 16px; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-                <strong id="titulo-modal-chave" style="font-size: 16px; color: #1e293b;">Opções</strong>
+                <strong id="titulo-modal-chave" style="font-size: 16px; color: #1e293b;">Opções da Palavra-chave</strong>
                 <button onclick="fecharModalTresPontinhos()" style="background: none; border: none; cursor: pointer; color: #64748b;">
                     <span class="material-icons">close</span>
                 </button>
@@ -89,7 +89,7 @@
                 </div>
                 <div id="sub-importacao" style="display: none;">
                     <p style="font-size: 13px; color: #334155; margin-bottom: 12px; line-height: 1.4; background: #f1f5f9; padding: 10px; border-radius: 8px;">
-                        <strong>Diretriz:</strong> O arquivo deve ter uma coluna com o número da questão e as demais colunas com a chave.
+                        <strong>Diretriz:</strong> O arquivo deve ter uma coluna com o número da questão e as demais com a chave.
                     </p>
                     <input type="file" id="input-arquivo-chave" accept=".csv" style="display: none;" onchange="processarImportacaoChaveCSV(event)">
                     <button onclick="document.getElementById('input-arquivo-chave').click()" style="width: 100%; padding: 12px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
@@ -509,7 +509,6 @@
                     <div class="turma-info" style="display: flex; align-items: center; gap: 12px; flex: 1;">
                         ${modoSelecaoAlunos ? `<input type="checkbox" class="aluno-checkbox" value="${indexReal}" style="width: 16px; height: 16px;">` : ''}
                         
-                        <!-- Avatar Redondo EvalBee Style -->
                         <div style="width: 36px; height: 36px; border-radius: 50%; background: #e2e8f0; color: #334155; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; border: 1px solid #cbd5e1;">
                             ${letraInicial}
                         </div>
@@ -554,7 +553,6 @@
 
         function fecharModalAluno() { document.getElementById('form-aluno').style.display = 'none'; }
 
-        // ================= VALIDAÇÃO COM OPÇÃO DE SUBSTITUIÇÃO =================
         function salvarAluno() {
             const idx = document.getElementById('edit-aluno-index').value;
             const numero = document.getElementById('num-aluno').value.trim();
@@ -562,15 +560,8 @@
             const telefone = document.getElementById('telefone-aluno').value.trim();
             const email = document.getElementById('email-aluno').value.trim();
 
-            if (!nome) {
-                alert("O Nome é obrigatório.");
-                return;
-            }
-
-            if (!numero) {
-                alert("O Número da lista é obrigatório.");
-                return;
-            }
+            if (!nome) { alert("O Nome é obrigatório."); return; }
+            if (!numero) { alert("O Número da lista é obrigatório."); return; }
 
             const turmas = obterDados('turmas_app');
             if (!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
@@ -583,16 +574,11 @@
             if (indexExistente !== -1) {
                 const alunoAntigo = turmas[turmaAtualIndex].alunos[indexExistente];
                 const desejaSubstituir = confirm(`O número de frequência ${numero} já pertence ao aluno "${alunoAntigo.nome.toUpperCase()}".\n\nDeseja substituir o aluno anterior por "${nome.toUpperCase()}"?`);
-                
-                if (!desejaSubstituir) {
-                    return; 
-                } else {
-                    turmas[turmaAtualIndex].alunos.splice(indexExistente, 1);
-                }
+                if (!desejaSubstituir) { return; } 
+                else { turmas[turmaAtualIndex].alunos.splice(indexExistente, 1); }
             }
 
             const dt = { numero, nome, telefone, email };
-            
             if (idx === "") {
                 turmas[turmaAtualIndex].alunos.push(dt); 
             } else {
@@ -610,18 +596,12 @@
             const turmas = obterDados('turmas_app'); 
             const turma = turmas[turmaAtualIndex];
             const nomeTurma = turma ? turma.nome : "A2";
-            
             const conteudoCSV = `"ROLLNO","NAME","CLASS","EMAILID","PHONENO"\n"1","ALUNO EXEMPLO","${nomeTurma}","email@exemplo.com","991234567"\n`;
-            
             const blob = new Blob([conteudoCSV], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
+            link.setAttribute("href", URL.createObjectURL(blob));
             link.setAttribute("download", "student_export.csv");
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            
+            document.body.appendChild(link); link.click(); link.remove();
             fecharModalOpcoesAlunos();
         }
 
@@ -632,15 +612,12 @@
                 const linhas = e.target.result.split(/\r\n|\n/); 
                 const turmas = obterDados('turmas_app');
                 if (!turmas[turmaAtualIndex].alunos) turmas[turmaAtualIndex].alunos = [];
-                let count = 0;
-                let substituidos = 0;
+                let count = 0, substituidos = 0;
                 
                 linhas.forEach((linhaOriginal, idx) => {
                     if (linhaOriginal.trim() === "") return;
-                    
                     const linhaLimpa = linhaOriginal.replace(/"/g, '');
                     const col = linhaLimpa.split(/,|;/);
-                    
                     if (idx === 0 && (col.some(c => c.toUpperCase().includes('NAME')) || col.some(c => c.toUpperCase().includes('NOME')))) return;
                     
                     if (col.length >= 2) {
@@ -652,20 +629,10 @@
                         const indexExistente = turmas[turmaAtualIndex].alunos.findIndex(a => String(a.numero).trim() === String(numCSV).trim());
 
                         if (indexExistente !== -1) {
-                            turmas[turmaAtualIndex].alunos[indexExistente] = {
-                                numero: numCSV,
-                                nome: nomeCSV,
-                                email: emailCSV,
-                                telefone: telCSV
-                            };
+                            turmas[turmaAtualIndex].alunos[indexExistente] = { numero: numCSV, nome: nomeCSV, email: emailCSV, telefone: telCSV };
                             substituidos++;
                         } else {
-                            turmas[turmaAtualIndex].alunos.push({ 
-                                numero: numCSV, 
-                                nome: nomeCSV,
-                                email: emailCSV,
-                                telefone: telCSV
-                            }); 
+                            turmas[turmaAtualIndex].alunos.push({ numero: numCSV, nome: nomeCSV, email: emailCSV, telefone: telCSV }); 
                             count++; 
                         }
                     } 
@@ -673,11 +640,9 @@
                 
                 salvarDados('turmas_app', turmas); 
                 renderizarListaAlunosProcessada(); 
-                
                 let msg = `${count} alunos novos importados!`;
-                if (substituidos > 0) msg += ` (${substituidos} aluno(s) anterior(es) foram substituídos por conflito de frequência).`;
+                if (substituidos > 0) msg += ` (${substituidos} aluno(s) substituído(s) por conflito de frequência).`;
                 alert(msg);
-                
                 fecharModalOpcoesAlunos();
                 document.getElementById('csv-file').value = '';
             };
@@ -686,17 +651,9 @@
 
         function exportarAlunosExcel() {
             const turmas = obterDados('turmas_app'); const turma = turmas[turmaAtualIndex];
-            const dados = (turma.alunos || []).map(a => ({ 
-                "ROLLNO": a.numero, 
-                "NAME": a.nome, 
-                "CLASS": turma.nome, 
-                "EMAILID": a.email || "", 
-                "PHONENO": a.telefone || "" 
-            }));
-            
+            const dados = (turma.alunos || []).map(a => ({ "ROLLNO": a.numero, "NAME": a.nome, "CLASS": turma.nome, "EMAILID": a.email || "", "PHONENO": a.telefone || "" }));
             const ws = XLSX.utils.json_to_sheet(dados); 
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Alunos"); 
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Alunos"); 
             XLSX.writeFile(wb, `alunos_${turma.nome}.xlsx`);
             fecharModalOpcoesAlunos();
         }
@@ -910,7 +867,6 @@
             const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome);
             const alunos = turma ? (turma.alunos || []) : [];
-
             const ausentes = alunos.filter(a => !a.respostasOMR || a.respostasOMR.length === 0);
 
             let listaHTML = '';
@@ -970,7 +926,6 @@
         }
         function voltarMenuChave() { document.getElementById('menu-base-chave').style.display='flex'; document.getElementById('submenu-conteudo-chave').style.display='none'; }
 
-        // ================= FUNÇÕES DE EXPORTAR E IMPORTAR GABARITO (CSV/PDF) =================
         function executarBaixarChave(formato) {
             const provas = obterDados('provas_app');
             const prova = provas[provaAtualIndex];
@@ -978,25 +933,19 @@
 
             if (formato === 'csv') {
                 let csvContent = "Q,KEY\n";
-                prova.gabarito.forEach((resp, i) => {
-                    csvContent += `${i + 1},${resp}\n`;
-                });
+                prova.gabarito.forEach((resp, i) => { csvContent += `${i + 1},${resp}\n`; });
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
+                link.setAttribute("href", URL.createObjectURL(blob));
                 link.setAttribute("download", `${prova.nome}_gab.csv`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
+                document.body.appendChild(link); link.click(); link.remove();
             } else if (formato === 'pdf') {
                 window.print();
             }
         }
 
         function processarImportacaoChaveCSV(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 const linhas = e.target.result.split(/\r\n|\n/);
@@ -1066,7 +1015,6 @@
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
             let html = '';
-            
             let ranqueados = alunos.map(a => ({...a, stats: calcularEstatisticasAluno(a, prova)})).filter(a => a.respostasOMR).sort((a,b)=>b.stats.marcas - a.stats.marcas);
             
             ranqueados.forEach((a, rank) => {
