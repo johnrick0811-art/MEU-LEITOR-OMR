@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Cartões - EvalBee Style Master v6</title>
+    <title>Gerador de Cartões - EvalBee Style Master v7</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -133,17 +133,6 @@
         </div>
     </div>
 
-    <!-- Modal Ajuda Marcadores Parciais / Opcionais -->
-    <div id="modal-ajuda-info" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;" class="no-print">
-        <div style="background: #fff; width: 85%; max-width: 350px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-            <h3 id="titulo-ajuda-modal" style="font-size: 16px; margin-bottom: 8px; color: #1e293b;">Informação</h3>
-            <p id="texto-ajuda-modal" style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;"></p>
-            <div style="display: flex; justify-content: flex-end;">
-                <button onclick="document.getElementById('modal-ajuda-info').style.display='none'" class="btn-primary" style="padding: 6px 16px;">Fechar</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Elemento para impressão nativa do OMR -->
     <div id="preview-cartoes-container" style="display: none;"></div>
 
@@ -168,6 +157,8 @@
         let filtroAlunosCriterio = 'numero'; 
         let filtroAlunosOrdem = 'asc';        
 
+        let incluirAusentesExportacao = false;
+
         // Wizard de Criação
         let criacaoPasso = 1;
         let dadosNovoExame = {
@@ -176,7 +167,6 @@
             etiquetaRol: "frequência", 
             etiquetaExame: "EXAME",
             etiquetaNome: "NOME",
-            etiquetaData: "DATA",
             incluirTituloFolha: true,
             instrucoesFolha: "Preencha completamente as bolhas com caneta preta ou azul.",
             assuntos: [{ materia: "Assunto 1", secoesCount: 1, q: 10, inicioQ: 1, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false }]
@@ -830,9 +820,6 @@
                         <label style="font-size: 12px; font-weight: bold; color: #64748b;">Etiqueta Exame</label>
                         <input type="text" id="cfg-rotulo-exame" value="${dadosNovoExame.etiquetaExame}" onchange="dadosNovoExame.etiquetaExame=this.value">
 
-                        <label style="font-size: 12px; font-weight: bold; color: #64748b;">Etiqueta Data</label>
-                        <input type="text" id="cfg-rotulo-data" value="${dadosNovoExame.etiquetaData}" onchange="dadosNovoExame.etiquetaData=this.value">
-
                         <div style="display:flex; align-items:center; gap:10px; margin-top:10px; margin-bottom:12px;">
                             <input type="checkbox" id="cfg-titulo-folha" ${dadosNovoExame.incluirTituloFolha ? 'checked' : ''} onchange="dadosNovoExame.incluirTituloFolha=this.checked" style="width:18px; height:18px;">
                             <label for="cfg-titulo-folha" style="font-size:13px; font-weight:500;">Exibir Título Principal no Topo</label>
@@ -989,7 +976,6 @@
                 etiquetaRol: dadosNovoExame.etiquetaRol,
                 etiquetaNome: dadosNovoExame.etiquetaNome,
                 etiquetaExame: dadosNovoExame.etiquetaExame,
-                etiquetaData: dadosNovoExame.etiquetaData,
                 incluirTituloFolha: dadosNovoExame.incluirTituloFolha,
                 instrucoesFolha: dadosNovoExame.instrucoesFolha,
                 blocos: blocosProc,
@@ -1002,7 +988,7 @@
             criacaoPasso = 1;
             dadosNovoExame = {
                 nome: "", turmaNome: "", digitosRol: 5, conjuntos: 1, assuntosCount: 1,
-                layout: "Continuous", etiquetaRol: "frequência", etiquetaExame: "EXAME", etiquetaNome: "NOME", etiquetaData: "DATA",
+                layout: "Continuous", etiquetaRol: "frequência", etiquetaExame: "EXAME", etiquetaNome: "NOME",
                 incluirTituloFolha: true, instrucoesFolha: "Preencha completamente as bolhas.",
                 assuntos: [{ materia: "Assunto 1", secoesCount: 1, q: 10, inicioQ: 1, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false }]
             };
@@ -1035,16 +1021,12 @@
                 <div style="padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; min-width: 45px;">
-                                <div style="font-size: 9px; text-transform: uppercase;">out.</div>
-                                <div style="font-size: 14px;">17</div>
-                            </div>
                             <span style="font-weight: bold; font-size: 15px; color: #1e293b;">${prova.nome}</span>
                         </div>
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 15px; font-size: 12px; color: #64748b; margin-bottom: 10px;">
-                        <span>❓ ${prova.gabarito.length}</span>
+                        <span>❓ ${prova.gabarito.length} Q</span>
                         <span>${temChaveSalva ? '🔑 Chave salva' : '🔒 Não disponível'}</span>
                         <span>👥 ${prova.turmaNome || 'Geral'}</span>
                     </div>
@@ -1070,7 +1052,6 @@
                             <span style="font-size: 12px; color: #334155; text-align: center;">Digitalizar</span>
                         </div>
 
-                        <!-- BOTÃO DE CONFIGURAÇÕES QUE ABRE A TELA COMPLETA DE EDIÇÃO -->
                         <div onclick="abrirSubTela('configuracoes-completas')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
                             <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">settings</span></div>
                             <span style="font-size: 12px; color: #334155; text-align: center;">Configurações</span>
@@ -1155,9 +1136,6 @@
                     <label style="font-size: 12px; font-weight: bold; color: #64748b;">Etiqueta Exame</label>
                     <input type="text" id="cfg-geral-etqexame" value="${prova.etiquetaExame || 'EXAME'}">
 
-                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Etiqueta Data</label>
-                    <input type="text" id="cfg-geral-etqdata" value="${prova.etiquetaData || 'DATA'}">
-
                     <div style="display:flex; align-items:center; gap:10px; margin-top:5px; margin-bottom:12px;">
                         <input type="checkbox" id="cfg-geral-titulofolha" ${prova.incluirTituloFolha !== false ? 'checked' : ''} style="width:18px; height:18px;">
                         <label for="cfg-geral-titulofolha" style="font-size:13px; font-weight:500;">Exibir Título Principal no Topo</label>
@@ -1189,7 +1167,6 @@
             prova.etiquetaRol = document.getElementById('cfg-geral-etqrol').value;
             prova.etiquetaNome = document.getElementById('cfg-geral-etqnome').value;
             prova.etiquetaExame = document.getElementById('cfg-geral-etqexame').value;
-            prova.etiquetaData = document.getElementById('cfg-geral-etqdata').value;
             prova.incluirTituloFolha = document.getElementById('cfg-geral-titulofolha').checked;
             prova.instrucoesFolha = document.getElementById('cfg-geral-instrucoes').value;
 
@@ -1205,7 +1182,6 @@
                 totalQ += qtd;
             }
 
-            // Recria gabarito e notas mantendo o tamanho correto
             let novoGabarito = Array(totalQ).fill('A');
             let novasNotas = {};
             for(let i = 0; i < totalQ; i++) {
@@ -1415,6 +1391,23 @@
             if(alunoRelatorioIndex >= ranqueados.length) alunoRelatorioIndex = 0;
             const a = ranqueados[alunoRelatorioIndex];
 
+            // Renderização auditada individual
+            let auditoriaGabarito = '';
+            prova.gabarito.forEach((correta, idx) => {
+                const respAluno = a.respostasOMR[idx] || '';
+                let statusCor = '#64748b';
+                let statusText = 'Branco';
+                if (respAluno === correta) { statusCor = '#16a34a'; statusText = 'Correta'; }
+                else if (respAluno !== '') { statusCor = '#ef4444'; statusText = 'Incorreta'; }
+
+                auditoriaGabarito += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px;">
+                        <span>Q${idx+1} (Chave: <strong>${correta}</strong>)</span>
+                        <span style="color:${statusCor}; font-weight:bold;">Resp: ${respAluno || '-'} (${statusText})</span>
+                    </div>
+                `;
+            });
+
             document.getElementById('tela-conteudo').innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items:center; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
                     <div style="display:flex; align-items:center; gap:12px;">
@@ -1430,6 +1423,10 @@
                         <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Percentual</span> <strong>${a.stats.percentual}%</strong></div>
                         <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Acertos</span> <strong style="color:#16a34a;">${a.stats.corretas}</strong></div>
                         <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Erros</span> <strong style="color:#ef4444;">${a.stats.incorretas}</strong></div>
+                    </div>
+                    <div style="background:#fff; padding:16px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <h3 style="font-size:14px; margin-bottom:10px; color:#1e293b;">Auditoria das Questões</h3>
+                        ${auditoriaGabarito}
                     </div>
                 </div>
                 <div style="display:flex; justify-content:space-between; padding:12px 16px; background:#fff; border-top:1px solid #e2e8f0;">
@@ -1484,13 +1481,25 @@
         function exportarExcelResultadosOficial() {
             const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
-            const lidos = alunos.filter(a => a.respostasOMR);
-            if (lidos.length === 0) return alert("Nenhum cartão lido para exportar.");
+            let selecionados = alunos;
+            
+            if(!incluirAusentesExportacao) {
+                selecionados = alunos.filter(a => a.respostasOMR && a.respostasOMR.length > 0);
+            }
+
+            if (selecionados.length === 0) return alert("Nenhum dado selecionado para exportar.");
 
             let dados = [];
-            lidos.forEach(a => {
+            selecionados.forEach(a => {
                 const s = calcularEstatisticasAluno(a, prova);
-                dados.push({ "Nome": a.nome, "Matrícula": a.numero, "Nota": s.marcas, "Corretas": s.corretas, "Incorretas": s.incorretas });
+                dados.push({ 
+                    "Nome": a.nome, 
+                    "Matrícula": a.numero, 
+                    "Status": a.respostasOMR ? "Presente" : "Ausente",
+                    "Nota": a.respostasOMR ? s.marcas : 0, 
+                    "Corretas": a.respostasOMR ? s.corretas : 0, 
+                    "Incorretas": a.respostasOMR ? s.incorretas : 0 
+                });
             });
             const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dados), "Resultados");
             XLSX.writeFile(wb, `${prova.nome}.xlsx`);
@@ -1536,7 +1545,6 @@
                 const etqRol = (prova.etiquetaRol || 'frequência').toUpperCase();
                 const etqNome = (prova.etiquetaNome || 'NOME').toUpperCase();
                 const etqExame = (prova.etiquetaExame || 'EXAME').toUpperCase();
-                const etqData = (prova.etiquetaData || 'DATA').toUpperCase();
                 const exibirTitulo = prova.incluirTituloFolha !== false;
                 const instrucoes = prova.instrucoesFolha || '';
 
@@ -1545,7 +1553,7 @@
                         ${exibirTitulo ? `<div style="text-align:center; border-bottom:2px solid #000; margin-bottom:8px;"><h3 style="font-size:13px; margin:0;">CARTÃO DE RESPOSTAS OMR</h3><p style="font-size:9px; margin:2px 0;">${etqExame}:${prova.nome}</p></div>` : ''}
                         <div style="border:1px solid #000; padding:5px; font-size:9px; margin-bottom:8px; background:#f9fafb;">
                             <strong>${etqNome}:</strong> ${aluno.nome.toUpperCase()}<br>
-                            <strong>${etqRol}:</strong> ${aluno.numero||'--'} | <strong>CLASSE:</strong> ${turma.nome.toUpperCase()} | <strong>${etqData}:</strong> 17/10/2026
+                            <strong>${etqRol}:</strong> ${aluno.numero||'--'} | <strong>CLASSE:</strong> ${turma.nome.toUpperCase()}
                             ${instrucoes ? `<br><em style="font-size:8px; color:#555;">Instruções: ${instrucoes}</em>` : ''}
                         </div>
                         <div style="column-count: ${prova.layout === 'Subject in column' ? '2' : '3'}; column-gap: 12px; flex:1;">${blocosHTML}</div>
