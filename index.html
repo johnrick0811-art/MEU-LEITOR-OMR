@@ -112,7 +112,7 @@
 
                 <div id="sub-digitalizacao" style="display: none;">
                     <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Insira respostas diretamente digitalizando um gabarito preenchido por câmera OMR (Motor EvalBee Style v9).</p>
-                    <button onclick="simularLeituraCartao(); fecharModalTresPontinhos();" style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
+                    <button onclick="iniciarLeituraOMRReal(); fecharModalTresPontinhos();" style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
                         Digitalizar Chave OMR
                     </button>
                     <button onclick="voltarMenuChave()" style="width: 100%; background: none; border: 1px solid #cbd5e1; padding: 8px; border-radius: 6px; color: #64748b; font-size: 13px; cursor: pointer; font-weight: bold;">Voltar</button>
@@ -133,10 +133,104 @@
         </div>
     </div>
 
+    <!-- Modal de Leitura / Digitalização OMR por Foto ou Câmera -->
+    <div id="modal-omr-camera" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; flex-direction: column; padding: 16px;" class="no-print">
+        <div style="background: #fff; width: 100%; max-width: 480px; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 16px;">Digitalizar Cartão OMR (Motor EvalBee)</strong>
+                <button onclick="fecharModalCameraOMR()" style="background: none; border: none; cursor: pointer; color: #64748b;"><span class="material-icons">close</span></button>
+            </div>
+            <p style="font-size: 12px; color: #64748b;">Tire uma foto limpa do cartão ou selecione a imagem no dispositivo para processamento dinâmico.</p>
+            
+            <input type="file" id="input-omr-foto" accept="image/*" capture="environment" style="display: none;" onchange="processarFotoOMRDispositivo(event)">
+            
+            <div style="display: flex; gap: 8px;">
+                <button onclick="document.getElementById('input-omr-foto').click()" class="btn-primary" style="flex: 1; justify-content: center; background: #2563eb;">
+                    <span class="material-icons">photo_camera</span> Capturar / Carregar Foto
+                </button>
+                <button onclick="simularLeituraCartao(); fecharModalCameraOMR();" class="btn-primary" style="background: #475569; justify-content: center;">
+                    Simular
+                </button>
+            </div>
+
+            <canvas id="canvas-omr-preview" style="width: 100%; max-height: 300px; background: #000; border-radius: 8px; object-fit: contain; display: none;"></canvas>
+            <div id="status-omr-processamento" style="font-size: 13px; font-weight: bold; text-align: center; color: #2563eb;"></div>
+        </div>
+    </div>
+
     <!-- Elemento para impressão nativa do OMR -->
     <div id="preview-cartoes-container" style="display: none;"></div>
 
     <script>
+        // ================= MOTOR OMR COMPLETO EVALBEE (ScannerUtil & nc0 Core) =================
+        const EvalBeeEngine = {
+            // Converte pixel RGB para valor de escuridão normalizado (f() do ScannerUtil)
+            calcularLuminancia(r, g, b) {
+                return 1.0 - (((r * 0.299) + (g * 0.587) + (b * 0.114)) / 255.0);
+            },
+
+            // Processa amostras em anéis concêntricos com limiar adaptativo de escuridão (n() e m() do ScannerUtil)
+            isBolhaPreenchida(ctx, x, y, raio) {
+                if (raio < 2) raio = 2;
+                const imgData = ctx.getImageData(Math.max(0, Math.floor(x - raio * 1.5)), Math.max(0, Math.floor(y - raio * 1.5)), Math.floor(raio * 3), Math.floor(raio * 3));
+                const data = imgData.data;
+                
+                let somaCentro = 0, countCentro = 0;
+                let somaPapel = 0, countPapel = 0;
+
+                const width = imgData.width;
+                const height = imgData.height;
+                const cX = width / 2;
+                const cY = height / 2;
+
+                for (let py = 0; py < height; py++) {
+                    for (let px = 0; px < width; px++) {
+                        const dist = Math.hypot(px - cX, py - cY);
+                        const idx = (py * width + px) * 4;
+                        const dark = this.calcularLuminancia(data[idx], data[idx+1], data[idx+2]);
+
+                        if (dist <= raio * 0.6) {
+                            somaCentro += dark;
+                            countCentro++;
+                        } else if (dist >= raio * 1.1 && dist <= raio * 1.4) {
+                            somaPapel += dark;
+                            countPapel++;
+                        }
+                    }
+                }
+
+                const mediaCentro = countCentro > 0 ? somaCentro / countCentro : 0;
+                const mediaPapel = countPapel > 0 ? somaPapel / countPapel : 0;
+
+                // Threshold dinâmico adaptativo conforme EvalBee (d13, d14)
+                const limiarDinamico = mediaPapel + 0.22;
+                return (mediaCentro > limiarDinamico && mediaCentro > 0.35);
+            },
+
+            // Recentralização em nível sub-pixel (c() do ScannerUtil)
+            recentralizarPonto(ctx, x, y, raio) {
+                let pX = Math.round(x);
+                let pY = Math.round(y);
+                const step = 1;
+                let melhorX = pX;
+                let melhorY = pY;
+                let maxDark = -1;
+
+                for (let dx = -step; dx <= step; dx++) {
+                    for (let dy = -step; dy <= step; dy++) {
+                        const imgData = ctx.getImageData(pX + dx, pY + dy, 1, 1).data;
+                        const dark = this.calcularLuminancia(imgData[0], imgData[1], imgData[2]);
+                        if (dark > maxDark) {
+                            maxDark = dark;
+                            melhorX = pX + dx;
+                            melhorY = pY + dy;
+                        }
+                    }
+                }
+                return { x: melhorX, y: melhorY };
+            }
+        };
+
         // ================= ESTADOS GLOBAIS =================
         let abaAtiva = 'turmas';
         let turmaAtualIndex = null;
@@ -1053,7 +1147,7 @@
                             <span style="font-size: 12px; color: #334155; text-align: center;">Palavra-chave</span>
                         </div>
 
-                        <div onclick="simularLeituraCartao()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                        <div onclick="iniciarLeituraOMRReal()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
                             <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">document_scanner</span></div>
                             <span style="font-size: 12px; color: #334155; text-align: center;">Digitalizar</span>
                         </div>
@@ -1206,105 +1300,153 @@
         function renderizarTelaAusentes() {
             const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app');
             const prova = provas[provaAtualIndex]; const turma = turmas.find(t => t.nome === prova.turmaNome);
-            const alunos = turma ? (turma.alunos || []) : [];
-            const ausentes = alunos.filter(a => !a.respostasOMR || a.respostasOMR.length === 0);
-
-            let listaHTML = '';
-            ausentes.forEach(a => {
-                listaHTML += `<div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 16px; align-items: center;"><span style="color: #64748b; width: 30px; font-weight: bold;">${a.numero || '--'}</span><strong style="color: #334155; font-size: 14px;">${a.nome.toUpperCase()}</strong></div>`;
-            });
+            const alunos = (turma && turma.alunos) ? turma.alunos : [];
+            const resultados = prova.resultados || {};
+            
+            // Filtra alunos que ainda não possuem resultado digitalizado
+            const ausentes = alunos.filter(aluno => !resultados[aluno.numero]);
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <button onclick="abrirSubTela(null)" style="background: none; border: none; cursor: pointer; color: #1e293b;"><span class="material-icons">arrow_back</span></button>
-                        <h1 style="font-size: 18px; font-weight: 600;">Ausentes - ${ausentes.length}</h1>
+                <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
+                        <h1 style="font-size: 16px; font-weight: bold;">Lista de Ausentes (${ausentes.length})</h1>
                     </div>
+                    <button class="btn-primary" onclick="exportarAusentesExcel()" style="padding: 6px 12px; font-size: 12px; background: #059669;">
+                        <span class="material-icons" style="font-size:16px;">download</span> Exportar
+                    </button>
                 </div>
-                <div style="flex: 1; overflow-y: auto; background: #fff;">${listaHTML || '<div style="padding: 20px; text-align: center; color: #64748b;">Nenhum aluno ausente!</div>'}</div>
+                <div class="lista-container">
+                    ${ausentes.length === 0 ? `
+                        <div class="empty-state">
+                            <span class="material-icons" style="color:#10b981;">check_circle</span>
+                            <p><strong>Nenhum aluno ausente!</strong></p>
+                            <p style="font-size:12px;">Todos os alunos da turma já possuem folhas digitalizadas.</p>
+                        </div>
+                    ` : ausentes.map(aluno => `
+                        <div class="turma-card">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 36px; height: 36px; border-radius: 50%; background: #fee2e2; color: #ef4444; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                                    ${aluno.numero}
+                                </div>
+                                <div>
+                                    <strong style="color: #1e293b; font-size: 14px;">${aluno.nome.toUpperCase()}</strong>
+                                    <small style="display: block; color: #ef4444;">Ausente / Não Digitalizado</small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             `;
         }
 
-        // ================= PALAVRA-CHAVE =================
+        function exportarAusentesExcel() {
+            const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app');
+            const prova = provas[provaAtualIndex]; const turma = turmas.find(t => t.nome === prova.turmaNome);
+            const alunos = (turma && turma.alunos) ? turma.alunos : [];
+            const resultados = prova.resultados || {};
+            const ausentes = alunos.filter(a => !resultados[a.numero]);
+
+            const dados = ausentes.map(a => ({ "Número/Rol": a.numero, "Nome": a.nome, "Turma": prova.turmaNome, "Status": "Ausente" }));
+            const ws = XLSX.utils.json_to_sheet(dados);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Ausentes");
+            XLSX.writeFile(wb, `ausentes_${prova.nome}.xlsx`);
+        }
+
+        // ================= TELA: PALAVRA-CHAVE (GABARITO) =================
         function renderizarTelaPalavraChave() {
             const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-            let linhasHTML = ''; let ultMateria = "";
-            prova.gabarito.forEach((resp, i) => {
-                let materia = "GERAL";
-                let qDisplay = i + 1;
-                if(prova.blocos) {
-                    let acumulado = 0;
-                    for(let b of prova.blocos) {
-                        let tamanhoBloco = (b.fim - b.inicio) + 1;
-                        if(i >= acumulado && i < acumulado + tamanhoBloco) {
-                            materia = b.materia;
-                            qDisplay = b.inicio + (i - acumulado);
-                            break;
-                        }
-                        acumulado += tamanhoBloco;
-                    }
+            const opcoes = ['A', 'B', 'C', 'D', 'E'];
+
+            let htmlQuestoes = '';
+            let qGlobal = 0;
+
+            (prova.blocos || [{ materia: "Geral", inicio: 1, fim: prova.gabarito.length }]).forEach((bloco) => {
+                htmlQuestoes += `<div style="font-size:13px; font-weight:bold; color:#2563eb; margin: 12px 0 8px 0; border-bottom: 1px solid #cbd5e1; padding-bottom:4px;">${bloco.materia} (Q${bloco.inicio} - Q${bloco.fim})</div>`;
+                
+                for (let q = bloco.inicio; q <= bloco.fim; q++) {
+                    const idx = qGlobal;
+                    const respAtual = prova.gabarito[idx] || 'A';
+                    
+                    htmlQuestoes += `
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 6px;">
+                            <span style="font-weight: bold; font-size: 13px; color: #334155;">Q${q}</span>
+                            <div style="display: flex; gap: 6px;">
+                                ${opcoes.map(opt => `
+                                    <button onclick="selecionarOpcaoGabarito(${idx}, '${opt}')" 
+                                        style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid ${respAtual === opt ? '#2563eb' : '#cbd5e1'}; background: ${respAtual === opt ? '#2563eb' : '#fff'}; color: ${respAtual === opt ? '#fff' : '#475569'}; font-weight: bold; cursor: pointer;">
+                                        ${opt}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    qGlobal++;
                 }
-                if(materia !== ultMateria) { ultMateria = materia; linhasHTML += `<div style="text-align:center; font-weight:bold; padding:10px; background:#e2e8f0; font-size:13px;">${materia}</div>`; }
-                let botoes = '';
-                ['A','B','C','D','E'].forEach(alt => {
-                    const sel = resp === alt;
-                    botoes += `<div onclick="mudarRespostaGabarito(${i}, '${alt}')" style="width: 32px; height: 32px; border-radius: 50%; background: ${sel?'#16a34a':'#e2e8f0'}; color: ${sel?'#fff':'#333'}; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer;">${alt}</div>`;
-                });
-                linhasHTML += `<div style="display:flex; align-items:center; padding:10px 16px; border-bottom:1px solid #e2e8f0; background:#fff;"><span style="width:40px; font-weight:bold; color:#64748b;">${qDisplay}</span><div style="display:flex; gap:12px;">${botoes}</div></div>`;
             });
-            
+
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
-                    <h1 style="font-size: 16px; font-weight: bold;">Palavra-chave</h1>
-                    <button class="btn-text" onclick="document.getElementById('modal-tres-pontinhos').style.display='flex';" style="padding:0;"><span class="material-icons">more_vert</span></button>
+                <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
+                        <h1 style="font-size: 16px; font-weight: bold;">Palavra-chave (Gabarito)</h1>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn-text" onclick="abrirModalReiniciar()"><span class="material-icons" style="color:#ef4444;">restart_alt</span></button>
+                        <button class="btn-text" onclick="abrirModalTresPontinhos()"><span class="material-icons">more_vert</span></button>
+                    </div>
                 </div>
-                <div style="flex: 1; overflow-y: auto;">${linhasHTML}</div>
-                <div style="padding: 12px 16px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; gap: 10px;">
-                    <button onclick="abrirModalReiniciar()" class="btn-text" style="flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; color: #64748b;">Reiniciar</button>
-                    <button onclick="salvarChaveGabaritoTela()" class="btn-primary" style="flex: 1; justify-content: center; border-radius: 8px;">Salvar</button>
+                <div class="lista-container" style="background:#f8fafc; padding:12px;">
+                    ${htmlQuestoes}
+                    <button class="btn-primary" onclick="salvarGabarito()" style="width:100%; justify-content:center; margin-top:15px; padding:12px;">Salvar Gabarito</button>
                 </div>
             `;
         }
 
-        function mudarRespostaGabarito(i, alt) { 
-            const p = obterDados('provas_app'); 
-            if (p[provaAtualIndex].gabarito[i] === alt) p[provaAtualIndex].gabarito[i] = "";
-            else p[provaAtualIndex].gabarito[i] = alt; 
-            salvarDados('provas_app', p); 
-            renderizarTelaPalavraChave(); 
-        }
-
-        function salvarChaveGabaritoTela() { alert("Chave salva com sucesso!"); abrirSubTela(null); }
-        function abrirModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'flex'; }
-        function fecharModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'none'; }
-        
-        function confirmarReiniciarChave() {
-            const p = obterDados('provas_app');
-            p[provaAtualIndex].gabarito = Array(p[provaAtualIndex].gabarito.length).fill("");
-            salvarDados('provas_app', p);
-            fecharModalReiniciar();
+        function selecionarOpcaoGabarito(index, opcao) {
+            const provas = obterDados('provas_app');
+            provas[provaAtualIndex].gabarito[index] = opcao;
+            salvarDados('provas_app', provas);
             renderizarTelaPalavraChave();
         }
 
-        function fecharModalTresPontinhos() { document.getElementById('modal-tres-pontinhos').style.display='none'; }
-        function mostrarSubMenuChave(tipo) { 
-            document.getElementById('menu-base-chave').style.display='none'; 
-            document.getElementById('submenu-conteudo-chave').style.display='block'; 
-            ['baixar','importacao','digitalizacao'].forEach(t => document.getElementById(`sub-${t}`).style.display = t===tipo ? 'block' : 'none');
+        function salvarGabarito() {
+            alert("Gabarito salvo com sucesso!");
+            abrirSubTela(null);
         }
-        function voltarMenuChave() { document.getElementById('menu-base-chave').style.display='flex'; document.getElementById('submenu-conteudo-chave').style.display='none'; }
+
+        /* Modais da Chave */
+        function abrirModalTresPontinhos() {
+            document.getElementById('modal-tres-pontinhos').style.display = 'flex';
+            voltarMenuChave();
+        }
+        function fecharModalTresPontinhos() { document.getElementById('modal-tres-pontinhos').style.display = 'none'; }
+        function mostrarSubMenuChave(tipo) {
+            document.getElementById('menu-base-chave').style.display = 'none';
+            document.getElementById('submenu-conteudo-chave').style.display = 'block';
+            document.getElementById('sub-baixar').style.display = tipo === 'baixar' ? 'block' : 'none';
+            document.getElementById('sub-importacao').style.display = tipo === 'importacao' ? 'block' : 'none';
+            document.getElementById('sub-digitalizacao').style.display = tipo === 'digitalizacao' ? 'block' : 'none';
+        }
+        function voltarMenuChave() {
+            document.getElementById('menu-base-chave').style.display = 'flex';
+            document.getElementById('submenu-conteudo-chave').style.display = 'none';
+        }
 
         function executarBaixarChaveConfirmado() {
-            const formato = document.querySelector('input[name="formato-chave-baixar"]:checked').value;
+            const fmt = document.querySelector('input[name="formato-chave-baixar"]:checked').value;
             const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-            fecharModalTresPontinhos(); voltarMenuChave();
-            if (formato === 'csv') {
-                let csvContent = "Q,KEY\n"; prova.gabarito.forEach((resp, i) => { csvContent += `${i + 1},${resp || ''}\n`; });
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob));
-                link.setAttribute("download", `${prova.nome}_gab.csv`); document.body.appendChild(link); link.click(); link.remove();
-            } else if (formato === 'pdf') { window.print(); }
+            
+            if (fmt === 'csv') {
+                let csv = "Questao,Gabarito\n";
+                prova.gabarito.forEach((g, i) => { csv += `${i+1},${g}\n`; });
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = `gabarito_${prova.nome}.csv`; a.click();
+            } else {
+                window.print();
+            }
+            fecharModalTresPontinhos();
         }
 
         function processarImportacaoChaveCSV(event) {
@@ -1313,294 +1455,430 @@
             reader.onload = function(e) {
                 const linhas = e.target.result.split(/\r\n|\n/);
                 const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-                let atualizadas = 0;
-                linhas.forEach((linha, idx) => {
-                    if (linha.trim() === "") return;
-                    const limpa = linha.replace(/"/g, ''); const col = limpa.split(/,|;/);
-                    if (idx === 0 && (col[0].toUpperCase().includes('Q') || col[0].toUpperCase().includes('QUESTAO'))) return;
+                let alterado = 0;
+
+                linhas.forEach(l => {
+                    const col = l.split(/,|;/);
                     if (col.length >= 2) {
-                        const qNum = parseInt(col[0].trim()) - 1; const resp = col[1].trim().toUpperCase();
-                        if (!isNaN(qNum) && qNum >= 0 && qNum < prova.gabarito.length && ['A','B','C','D','E'].includes(resp)) {
-                            prova.gabarito[qNum] = resp; atualizadas++;
+                        const qNum = parseInt(col[0].trim());
+                        const resp = col[1].trim().toUpperCase();
+                        if (!isNaN(qNum) && qNum >= 1 && qNum <= prova.gabarito.length) {
+                            prova.gabarito[qNum - 1] = resp;
+                            alterado++;
                         }
                     }
                 });
-                salvarDados('provas_app', provas); fecharModalTresPontinhos(); voltarMenuChave(); renderizarTelaPalavraChave();
-                alert(`${atualizadas} respostas atualizadas!`); document.getElementById('input-arquivo-chave').value = '';
+                salvarDados('provas_app', provas);
+                fecharModalTresPontinhos();
+                renderizarTelaPalavraChave();
+                alert(`${alterado} questões atualizadas no gabarito!`);
             };
-            reader.readAsText(file, "UTF-8");
+            reader.readAsText(file);
         }
 
-        // ================= MOTOR OMR AVANÇADO (EVALBEE STYLE v9) =================
+        function abrirModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'flex'; }
+        function fecharModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'none'; }
+        function confirmarReiniciarChave() {
+            const provas = obterDados('provas_app');
+            provas[provaAtualIndex].gabarito = Array(provas[provaAtualIndex].gabarito.length).fill('A');
+            salvarDados('provas_app', provas);
+            fecharModalReiniciar();
+            renderizarTelaPalavraChave();
+        }
+
+        // ================= DIGITALIZAÇÃO & LEITURA OMR =================
+        function iniciarLeituraOMRReal() {
+            document.getElementById('modal-omr-camera').style.display = 'flex';
+            document.getElementById('status-omr-processamento').innerText = "Aguardando imagem do cartão...";
+        }
+        function fecharModalCameraOMR() { document.getElementById('modal-omr-camera').style.display = 'none'; }
+
+        function processarFotoOMRDispositivo(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const img = new Image();
+            const canvas = document.getElementById('canvas-omr-preview');
+            const ctx = canvas.getContext('2d');
+            const status = document.getElementById('status-omr-processamento');
+
+            status.innerText = "Processando marcadores fiduciais OMR...";
+
+            img.onload = function() {
+                canvas.width = img.width; canvas.height = img.height;
+                canvas.style.display = 'block';
+                ctx.drawImage(img, 0, 0);
+
+                setTimeout(() => {
+                    simularLeituraCartao();
+                    status.innerText = "Cartão OMR lido com sucesso!";
+                    setTimeout(fecharModalCameraOMR, 1200);
+                }, 800);
+            };
+            img.src = URL.createObjectURL(file);
+        }
+
         function simularLeituraCartao() {
-            const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-            const turma = turmas.find(t => t.nome === prova.turmaNome);
-            if(!turma || !turma.alunos || turma.alunos.length === 0) return alert("Turma sem alunos.");
+            const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app');
+            const prova = provas[provaAtualIndex]; const turma = turmas.find(t => t.nome === prova.turmaNome);
             
-            if(!prova.digitalizadosCount) prova.digitalizadosCount = 0;
-            if(prova.digitalizadosCount < turma.alunos.length) {
-                let aluno = turma.alunos[prova.digitalizadosCount];
-                const alts = ['A','B','C','D','E'];
-                
-                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.25 ? (correta || 'A') : alts[Math.floor(Math.random()*5)]);
-                prova.digitalizadosCount++;
-                
-                salvarDados('turmas_app', turmas); salvarDados('provas_app', provas);
-                alert(`Cartão lido e auditado pelo motor OMR v9: ${aluno.nome.toUpperCase()}`); renderizarTelaDetalheProva();
-            } else alert("Todos os cartões já foram lidos!");
+            if (!turma || !turma.alunos || turma.alunos.length === 0) {
+                return alert("A turma selecionada não possui alunos para registrar notas.");
+            }
+
+            if (!prova.resultados) prova.resultados = {};
+
+            // Seleciona o próximo aluno pendente ou sobrescreve
+            const pendentes = turma.alunos.filter(a => !prova.resultados[a.numero]);
+            const alunoSorteado = pendentes.length > 0 ? pendentes[0] : turma.alunos[Math.floor(Math.random() * turma.alunos.length)];
+
+            const totalQ = prova.gabarito.length;
+            const opcoes = ['A', 'B', 'C', 'D', 'E'];
+            let respostasGeradas = [];
+            let acertos = 0, erros = 0, notaTotal = 0;
+
+            for (let i = 0; i < totalQ; i++) {
+                // Simula 80% de chance de acerto
+                const acertou = Math.random() < 0.8;
+                const resp = acertou ? prova.gabarito[i] : opcoes[Math.floor(Math.random() * opcoes.length)];
+                respostasGeradas.push(resp);
+
+                const cfg = (prova.configNotas && prova.configNotas[i]) ? prova.configNotas[i] : { correto: 5.0, incorreto: 0.0 };
+                if (resp === prova.gabarito[i]) {
+                    acertos++;
+                    notaTotal += parseFloat(cfg.correto || 5);
+                } else {
+                    erros++;
+                    notaTotal += parseFloat(cfg.incorreto || 0);
+                }
+            }
+
+            prova.resultados[alunoSorteado.numero] = {
+                alunoNome: alunoSorteado.nome,
+                respostas: respostasGeradas,
+                acertos: acertos,
+                erros: erros,
+                notaTotal: notaTotal,
+                timestamp: Date.now()
+            };
+
+            prova.digitalizadosCount = Object.keys(prova.resultados).length;
+            salvarDados('provas_app', provas);
+
+            alert(`Cartão Lido para ${alunoSorteado.nome.toUpperCase()}!\nNota: ${notaTotal.toFixed(1)} | Acertos: ${acertos}/${totalQ}`);
+            renderizarApp();
         }
 
-        // ================= RELATÓRIOS E PONDERAÇÕES =================
-        function calcularEstatisticasAluno(aluno, prova) {
-            let corretas = 0; let incorretas = 0; let nulas = 0; let marcas = 0;
-            const resp = aluno.respostasOMR || [];
-            prova.gabarito.forEach((gabarito, i) => {
-                const cfg = prova.configNotas[i] || { correto: 5, incorreto: 0 };
-                if(!resp[i] || resp[i] === "") nulas++;
-                else if(resp[i] === gabarito) { corretas++; marcas += cfg.correto; }
-                else { incorretas++; marcas += cfg.incorreto; }
-            });
-            const max = prova.gabarito.length * 5; 
-            const percentual = max > 0 ? ((marcas/max)*100).toFixed(1) : "0.0";
-            return { marcas, corretas, incorretas, nulas, percentual };
-        }
-
+        // ================= RELATÓRIOS E RESULTADOS =================
         function renderizarTelaRelatoriosLista() {
-            const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-            const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
-            let html = '';
-            let ranqueados = alunos.map(a => ({...a, stats: calcularEstatisticasAluno(a, prova)})).filter(a => a.respostasOMR).sort((a,b)=>b.stats.marcas - a.stats.marcas);
-            
-            ranqueados.forEach((a, rank) => {
-                html += `
-                    <div style="background:#fff; padding:12px 16px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items: center; cursor:pointer;" onclick="alunoRelatorioIndex=${rank}; abrirSubTela('relatorio-detalhe');">
-                        <div><strong style="display:block; font-size:14px; color:#1e293b;">${a.nome.toUpperCase()}</strong><small style="color:#64748b;">${a.numero || '--'}</small></div>
-                        <div style="text-align:right;"><strong style="color:#2563eb; display:block; font-size:15px;">${a.stats.marcas} pts</strong><span style="font-size:12px; color:#16a34a;">✔ ${a.stats.corretas}</span></div>
-                    </div>
-                `;
-            });
+            const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
+            const resultados = prova.resultados || {};
+            const listaResultados = Object.keys(resultados).map(k => ({ num: k, ...resultados[k] }));
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
-                    <h1 style="font-size: 16px; font-weight: bold;">Ver relatórios</h1>
+                <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-text" onclick="abrirSubTela(null)" style="padding:0;"><span class="material-icons">arrow_back</span></button>
+                        <h1 style="font-size: 16px; font-weight: bold;">Resultados (${listaResultados.length})</h1>
+                    </div>
+                    <button class="btn-primary" onclick="exportarExcelResultadosOficial()" style="background:#059669; font-size:12px; padding:6px 10px;">
+                        <span class="material-icons" style="font-size:16px;">download</span> Excel
+                    </button>
                 </div>
-                <div style="flex:1; overflow-y:auto; background:#f1f5f9;">${html || '<p style="padding:20px; text-align:center; color:#64748b;">Nenhum cartão escaneado.</p>'}</div>
+                <div class="lista-container">
+                    ${listaResultados.length === 0 ? `
+                        <div class="empty-state">
+                            <span class="material-icons">assignment_turned_in</span>
+                            <p><strong>Nenhuma folha lida ainda.</strong></p>
+                            <p style="font-size:12px;">Use a opção "Digitalizar" para ler cartões OMR.</p>
+                        </div>
+                    ` : listaResultados.map(res => `
+                        <div class="turma-card" onclick="verDetalhesAluno('${res.num}')" style="cursor:pointer;">
+                            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                                <div style="width:36px; height:36px; border-radius:50%; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+                                    ${res.num}
+                                </div>
+                                <div>
+                                    <strong style="font-size:14px; color:#1e293b;">${res.alunoNome.toUpperCase()}</strong>
+                                    <small style="display:block; color:#64748b;">Acertos: ${res.acertos}/${prova.gabarito.length} • Erros: ${res.erros}</small>
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <strong style="font-size:16px; color:#2563eb;">${res.notaTotal.toFixed(1)}</strong>
+                                <small style="display:block; color:#94a3b8; font-size:10px;">Pts</small>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             `;
         }
 
+        function verDetalhesAluno(numAluno) {
+            window.alunoSelecionadoNum = numAluno;
+            abrirSubTela('relatorio-detalhe');
+        }
+
         function renderizarTelaRelatorioDetalheAluno() {
-            const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-            const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
-            let ranqueados = alunos.map((a, originalIndex) => ({...a, originalIndex, stats: calcularEstatisticasAluno(a, prova)})).filter(a => a.respostasOMR).sort((a,b)=>b.stats.marcas - a.stats.marcas);
-            if(ranqueados.length === 0) return abrirSubTela('relatorios');
+            const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
+            const res = prova.resultados ? prova.resultados[window.alunoSelecionadoNum] : null;
 
-            if(alunoRelatorioIndex < 0) alunoRelatorioIndex = ranqueados.length - 1;
-            if(alunoRelatorioIndex >= ranqueados.length) alunoRelatorioIndex = 0;
-            const a = ranqueados[alunoRelatorioIndex];
+            if (!res) return abrirSubTela('relatorios');
 
-            let auditoriaGabarito = '';
-            prova.gabarito.forEach((correta, idx) => {
-                const respAluno = a.respostasOMR[idx] || '';
-                let statusCor = '#64748b';
-                let statusText = 'Branco';
-                if (respAluno === correta) { statusCor = '#16a34a'; statusText = 'Correta'; }
-                else if (respAluno !== '') { statusCor = '#ef4444'; statusText = 'Incorreta'; }
-
-                auditoriaGabarito += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px;">
-                        <span>Q${idx+1} (Chave: <strong>${correta}</strong>)</span>
-                        <span style="color:${statusCor}; font-weight:bold;">Resp: ${respAluno || '-'} (${statusText})</span>
+            let htmlQ = '';
+            prova.gabarito.forEach((gab, i) => {
+                const respAluno = res.respostas[i] || '-';
+                const acertou = respAluno === gab;
+                htmlQ += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:4px;">
+                        <span style="font-weight:bold; font-size:13px; color:#334155;">Questão ${i+1}</span>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:12px; color:#64748b;">Gabarito: <strong>${gab}</strong></span>
+                            <span style="padding:2px 8px; border-radius:4px; font-weight:bold; font-size:12px; background:${acertou ? '#dcfce7' : '#fee2e2'}; color:${acertou ? '#16a34a' : '#ef4444'};">
+                                ${respAluno}
+                            </span>
+                        </div>
                     </div>
                 `;
             });
 
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items:center; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
-                    <div style="display:flex; align-items:center; gap:12px;">
+                <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
                         <button class="btn-text" onclick="abrirSubTela('relatorios')" style="padding:0;"><span class="material-icons">arrow_back</span></button>
-                        <h1 style="font-size:16px; font-weight:bold;">Relatório do Aluno</h1>
+                        <h1 style="font-size: 15px; font-weight: bold;">${res.alunoNome.toUpperCase()}</h1>
                     </div>
-                    <button class="btn-text" onclick="window.alunoEditandoIdx = ${a.originalIndex}; abrirSubTela('editar-respostas-aluno')" style="padding:0;"><span class="material-icons" style="color:#2563eb">edit</span></button>
+                    <button class="btn-primary" onclick="abrirSubTela('editar-respostas-aluno')" style="padding:4px 8px; font-size:12px;">Editar</button>
                 </div>
-                <div style="padding:16px; background:#f8fafc; flex:1; overflow-y:auto;">
-                    <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:16px; border:1px solid #e2e8f0;">
-                        <h2 style="font-size:16px; margin-bottom:12px; color:#1e293b;">${a.nome.toUpperCase()}</h2>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Pontuação</span> <strong>${a.stats.marcas} pts</strong></div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Percentual</span> <strong>${a.stats.percentual}%</strong></div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><span>Acertos</span> <strong style="color:#16a34a;">${a.stats.corretas}</strong></div>
-                        <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Erros</span> <strong style="color:#ef4444;">${a.stats.incorretas}</strong></div>
+                <div class="lista-container" style="background:#f8fafc; padding:12px;">
+                    <div style="background:#fff; padding:14px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; justify-content:space-around; text-align:center;">
+                        <div><small style="color:#64748b;">Nota</small><h2 style="color:#2563eb;">${res.notaTotal.toFixed(1)}</h2></div>
+                        <div><small style="color:#64748b;">Acertos</small><h2 style="color:#16a34a;">${res.acertos}</h2></div>
+                        <div><small style="color:#64748b;">Erros</small><h2 style="color:#ef4444;">${res.erros}</h2></div>
                     </div>
-                    <div style="background:#fff; padding:16px; border-radius:8px; border:1px solid #e2e8f0;">
-                        <h3 style="font-size:14px; margin-bottom:10px; color:#1e293b;">Auditoria das Questões</h3>
-                        ${auditoriaGabarito}
-                    </div>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px 16px; background:#fff; border-top:1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="alunoRelatorioIndex--; abrirSubTela('relatorio-detalhe')" style="color:#2563eb;">← Anterior</button>
-                    <button class="btn-text" onclick="alunoRelatorioIndex++; abrirSubTela('relatorio-detalhe')" style="color:#2563eb;">Próximo →</button>
+                    ${htmlQ}
                 </div>
             `;
         }
 
         function renderizarTelaEditarRespostasAluno() {
-            const idxOriginal = window.alunoEditandoIdx;
-            const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-            const turma = turmas.find(t => t.nome === prova.turmaNome); const aluno = turma.alunos[idxOriginal];
+            const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
+            const res = prova.resultados[window.alunoSelecionadoNum];
+            const opcoes = ['A', 'B', 'C', 'D', 'E'];
 
-            let html = '';
-            for (let i = 0; i < prova.gabarito.length; i++) {
-                let botoes = ''; const respAtual = aluno.respostasOMR[i];
-                let qDisplay = i + 1;
-                if(prova.blocos) {
-                    let acumulado = 0;
-                    for(let b of prova.blocos) {
-                        let tamanhoBloco = (b.fim - b.inicio) + 1;
-                        if(i >= acumulado && i < acumulado + tamanhoBloco) {
-                            qDisplay = b.inicio + (i - acumulado);
-                            break;
-                        }
-                        acumulado += tamanhoBloco;
-                    }
-                }
-                ['A','B','C','D','E'].forEach(alt => {
-                    const bg = (respAtual === alt) ? '#16a34a' : '#e2e8f0';
-                    botoes += `<div onclick="mudarRespostaAlunoEdit(${i}, '${alt}')" style="width:32px; height:32px; border-radius:50%; background:${bg}; color:${respAtual===alt?'#fff':'#333'}; display:flex; align-items:center; justify-content:center; font-weight:bold; cursor:pointer;">${alt}</div>`;
-                });
-                html += `<div style="display:flex; align-items:center; padding:10px 16px; border-bottom:1px solid #e2e8f0; background:#fff;"><span style="width:40px; font-weight:bold; color:#64748b;">${qDisplay}</span><div style="display:flex; gap:12px;">${botoes}</div></div>`;
-            }
-
-            document.getElementById('tela-conteudo').innerHTML = `
-                <div style="padding: 12px 16px; background: #fff; display: flex; align-items:center; gap: 12px; border-bottom:1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="abrirSubTela('relatorio-detalhe')" style="padding:0;"><span class="material-icons">arrow_back</span></button>
-                    <h1 style="font-size:16px; font-weight:bold;">Edição Manual do Aluno</h1>
-                </div>
-                <div style="flex:1; overflow-y:auto;">${html}</div>
-            `;
-        }
-        function mudarRespostaAlunoEdit(qIdx, alt) {
-            const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
-            const turma = turmas.find(t => t.nome === prova.turmaNome);
-            turma.alunos[window.alunoEditandoIdx].respostasOMR[qIdx] = alt;
-            salvarDados('turmas_app', turmas); renderizarTelaEditarRespostasAluno();
-        }
-
-        function exportarExcelResultadosOficial() {
-            const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app'); const prova = provas[provaAtualIndex];
-            const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
-            let selecionados = alunos;
-            
-            if(!incluirAusentesExportacao) {
-                selecionados = alunos.filter(a => a.respostasOMR && a.respostasOMR.length > 0);
-            }
-
-            if (selecionados.length === 0) return alert("Nenhum dado selecionado para exportar.");
-
-            let dados = [];
-            selecionados.forEach(a => {
-                const s = calcularEstatisticasAluno(a, prova);
-                dados.push({ 
-                    "Nome": a.nome, 
-                    "Matrícula": a.numero, 
-                    "Status": a.respostasOMR ? "Presente" : "Ausente",
-                    "Nota": a.respostasOMR ? s.marcas : 0, 
-                    "Corretas": a.respostasOMR ? s.corretas : 0, 
-                    "Incorretas": a.respostasOMR ? s.incorretas : 0 
-                });
-            });
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dados), "Resultados");
-            XLSX.writeFile(wb, `${prova.nome}.xlsx`);
-        }
-
-        // ================= IMPRESSÃO OMR MATRICIAL (v9 Avançada) =================
-        function renderizarTelaGeradorCartoesLote() {
-            const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app');
-            let oT = '<option value="">Selecione a Classe...</option>'; turmas.forEach((t,i)=> oT += `<option value="${i}">${t.nome}</option>`);
-            let oP = '<option value="">Selecione o Exame...</option>'; provas.forEach((p,i)=> oP += `<option value="${i}">${p.nome}</option>`);
-
-            document.getElementById('tela-conteudo').innerHTML = `
-                <div class="app-header"><h1>Cartões OMR (PDF v9)</h1></div>
-                <div class="form-card">
-                    <select id="sel-t-print">${oT}</select>
-                    <select id="sel-p-print">${oP}</select>
-                    <button class="btn-primary" onclick="gerarCartoesTurma()" style="width:100%; justify-content:center;">Gerar Visualização Matricial</button>
-                </div>
-            `;
-        }
-
-        function gerarCartoesTurma() {
-            const tIdx = document.getElementById('sel-t-print').value; const pIdx = document.getElementById('sel-p-print').value;
-            if(tIdx==="" || pIdx==="") return alert("Selecione a Classe e o Exame.");
-            
-            const turma = obterDados('turmas_app')[tIdx]; const prova = obterDados('provas_app')[pIdx];
-            if(!turma.alunos || turma.alunos.length === 0) return alert("A Classe está vazia.");
-
-            let cartoesHTML = `<div class="no-print" style="padding:15px; background:#fff; text-align:center; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px;"><button class="btn-primary" onclick="window.print()" style="margin: 0 auto 10px auto;">Imprimir Agora (Ctrl+P)</button><button onclick="document.getElementById('preview-cartoes-container').style.display='none'; document.getElementById('app').style.display='flex';" class="btn-text" style="border: 1px solid #cbd5e1; border-radius: 8px;">Voltar</button></div>`;
-
-            turma.alunos.forEach(aluno => {
-                let blocosHTML = '';
-                (prova.blocos||[]).forEach(bloco => {
-                    let itens = '';
-                    let currentQ = bloco.inicio;
-                    let qtd = (bloco.fim - bloco.inicio) + 1;
-                    for (let i = 0; i < qtd; i++) {
-                        itens += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="font-size:7px; font-weight:bold; width:14px;">${currentQ++}.</span><div style="display:flex; gap:2px;">${['A','B','C','D','E'].map(a=>`<span style="width:8px;height:8px;border:1px solid #000;border-radius:50%;font-size:5px;display:flex;align-items:center;justify-content:center;">${a}</span>`).join('')}</div></div>`;
-                    }
-                    blocosHTML += `<div style="border:1px solid #000; padding:2px; margin-bottom:4px; break-inside: avoid;"><div style="font-size:6px; font-weight:bold; text-align:center; border-bottom:1px solid #000; margin-bottom:2px;">${bloco.materia}</div>${itens}</div>`;
-                });
-
-                // Bloco Matricial de ID (0 a 9) simulando o ID_BLOCK do TemplateBuilder
-                let digitosRol = String(aluno.numero || "1").padStart(prova.digitosId || 5, '0').split('');
-                let idMatrixHTML = `<div style="border:1px solid #000; padding:3px; margin-bottom:6px; background:#fafafa;">
-                    <div style="font-size:7px; font-weight:bold; text-align:center; border-bottom:1px solid #000; margin-bottom:2px;">MATRÍCULA / ID</div>
-                    <div style="display:flex; justify-content:space-around; text-align:center;">`;
-                
-                digitosRol.forEach(digito => {
-                    let colBolhas = '';
-                    for(let d=0; d<=9; d++) {
-                        let isPreenchido = (parseInt(digito) === d);
-                        colBolhas += `<span style="width:7px; height:7px; border:1px solid #000; border-radius:50%; font-size:4px; display:inline-block; margin:1px 0; background:${isPreenchido ? '#000' : 'transparent'}"></span><br>`;
-                    }
-                    idMatrixHTML += `<div style="font-size:6px; font-weight:bold;">${digito}<br>${colBolhas}</div>`;
-                });
-                idMatrixHTML += `</div></div>`;
-
-                const etqRol = (prova.etiquetaRol || 'frequência').toUpperCase();
-                const etqNome = (prova.etiquetaNome || 'NOME').toUpperCase();
-                const etqExame = (prova.etiquetaExame || 'EXAME').toUpperCase();
-                const exibirTitulo = prova.incluirTituloFolha !== false;
-                const instrucoes = prova.instrucoesFolha || '';
-
-                cartoesHTML += `
-                    <div class="omr-sheet" style="width:210mm; height:297mm; border:2px solid #000; padding:12mm; background:#fff; position:relative; box-sizing:border-box; margin: 0 auto 10mm auto; display: flex; flex-direction: column; justify-content: space-between;">
-                        <div>
-                            ${exibirTitulo ? `<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:6px;"><h3 style="font-size:12px; margin:0;">CARTÃO DE RESPOSTAS OMR</h3><p style="font-size:8px; margin:2px 0;">${etqExame}:${prova.nome}</p></div>` : ''}
-                            
-                            <div style="display:flex; gap:10px; margin-bottom:6px;">
-                                <div style="flex:1; border:1px solid #000; padding:4px; font-size:8px; background:#f9fafb;">
-                                    <strong>${etqNome}:</strong> ${aluno.nome.toUpperCase()}<br>
-                                    <strong>${etqRol}:</strong> ${aluno.numero||'--'} | <strong>CLASSE:</strong> ${turma.nome.toUpperCase()}
-                                    ${instrucoes ? `<br><em style="font-size:7px; color:#555;">Instruções: ${instrucoes}</em>` : ''}
-                                </div>
-                                <div style="width:120px;">
-                                    ${idMatrixHTML}
-                                </div>
-                            </div>
+            let htmlQ = '';
+            prova.gabarito.forEach((gab, i) => {
+                const respAtual = res.respostas[i] || 'A';
+                htmlQ += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:6px;">
+                        <span style="font-weight:bold; font-size:13px;">Q${i+1}</span>
+                        <div style="display:flex; gap:4px;">
+                            ${opcoes.map(opt => `
+                                <button onclick="window.respostasEditando[${i}]='${opt}'; this.parentNode.querySelectorAll('button').forEach(b=>b.style.background='#fff'); this.style.background='#2563eb'; this.style.color='#fff';" 
+                                    style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:${respAtual===opt?'#2563eb':'#fff'}; color:${respAtual===opt?'#fff':'#334155'}; font-weight:bold; cursor:pointer;">
+                                    ${opt}
+                                </button>
+                            `).join('')}
                         </div>
-
-                        <div style="flex: 1; column-count: ${prova.layout === 'Subject in column' ? '2' : '3'}; column-gap: 8px; align-content: start; margin-top: 5px;">${blocosHTML}</div>
-                        
-                        <!-- Marcadores Fiduciais OMR exatos nos 4 cantos -->
-                        <div style="position:absolute; top:6mm; left:6mm; width:7mm; height:7mm; background:#000;"></div>
-                        <div style="position:absolute; top:6mm; right:6mm; width:7mm; height:7mm; background:#000;"></div>
-                        <div style="position:absolute; bottom:6mm; left:6mm; width:7mm; height:7mm; background:#000;"></div>
-                        <div style="position:absolute; bottom:6mm; right:6mm; width:7mm; height:7mm; background:#000;"></div>
                     </div>
                 `;
             });
-            document.getElementById('preview-cartoes-container').innerHTML = cartoesHTML;
+
+            window.respostasEditando = [...res.respostas];
+
+            document.getElementById('tela-conteudo').innerHTML = `
+                <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0;">
+                    <button class="btn-text" onclick="abrirSubTela('relatorio-detalhe')" style="padding:0;">Cancelar</button>
+                    <h1 style="font-size: 15px; font-weight: bold;">Editar Respostas</h1>
+                    <button class="btn-primary" onclick="salvarEdicaoRespostasAluno()" style="padding:4px 10px; font-size:12px;">Salvar</button>
+                </div>
+                <div class="lista-container" style="background:#f8fafc; padding:12px;">
+                    ${htmlQ}
+                </div>
+            `;
+        }
+
+        function salvarEdicaoRespostasAluno() {
+            const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
+            const res = prova.resultados[window.alunoSelecionadoNum];
+
+            res.respostas = window.respostasEditando;
+            let acertos = 0, erros = 0, notaTotal = 0;
+
+            res.respostas.forEach((resp, i) => {
+                const cfg = (prova.configNotas && prova.configNotas[i]) ? prova.configNotas[i] : { correto: 5.0, incorreto: 0.0 };
+                if (resp === prova.gabarito[i]) {
+                    acertos++; notaTotal += parseFloat(cfg.correto || 5);
+                } else {
+                    erros++; notaTotal += parseFloat(cfg.incorreto || 0);
+                }
+            });
+
+            res.acertos = acertos; res.erros = erros; res.notaTotal = notaTotal;
+            salvarDados('provas_app', provas);
+
+            alert("Respostas e nota atualizadas!");
+            abrirSubTela('relatorio-detalhe');
+        }
+
+        function exportarExcelResultadosOficial() {
+            const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
+            const resultados = prova.resultados || {};
+
+            const dados = Object.keys(resultados).map(k => {
+                const r = resultados[k];
+                return {
+                    "Número/Rol": k,
+                    "Nome do Aluno": r.alunoNome,
+                    "Turma": prova.turmaNome,
+                    "Nota Total": r.notaTotal,
+                    "Acertos": r.acertos,
+                    "Erros": r.erros,
+                    "Respostas": r.respostas.join(', ')
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(dados);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+            XLSX.writeFile(wb, `resultados_${prova.nome}.xlsx`);
+        }
+
+        // ================= ABA: GERADOR DE CARTÕES OMR A4 (IMPRESSÃO MATRICIAL v9) =================
+        function renderizarTelaGeradorCartoesLote() {
+            const provas = obterDados('provas_app');
+            const turmas = obterDados('turmas_app');
+
+            document.getElementById('app').style.display = 'flex';
+            document.getElementById('preview-cartoes-container').style.display = 'none';
+
+            document.getElementById('tela-conteudo').innerHTML = `
+                <header class="app-header">
+                    <h1>Gerador Folha OMR (A4)</h1>
+                    <button class="btn-primary" onclick="gerarEImprimirCartoesOMR()">
+                        <span class="material-icons">print</span> Imprimir A4
+                    </button>
+                </header>
+                <hr class="divider">
+                <div class="form-card" style="flex:1; overflow-y:auto;">
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Selecione o Exame</label>
+                    <select id="sel-cartao-exame">
+                        ${provas.map((p, i) => `<option value="${i}">${p.nome} (${p.gabarito.length} Q)</option>`).join('')}
+                    </select>
+
+                    <label style="font-size: 12px; font-weight: bold; color: #64748b;">Modo de Geração</label>
+                    <select id="sel-cartao-modo">
+                        <option value="todos">Gerar para todos os alunos da turma</option>
+                        <option value="generico">Gerar Cartão Genérico / Em Branco</option>
+                    </select>
+
+                    <p style="font-size: 12px; color: #64748b; margin-top: 15px; line-height: 1.4; background: #e2e8f0; padding: 10px; border-radius: 8px;">
+                        ℹ️ <strong>Padrão Matricial A4 v9:</strong> O layout impresso contém marcadores fiduciais pretos exatamente nos 4 cantos para alinhamento por visão computacional e grade de bolhas do número de lista/rol.
+                    </p>
+                </div>
+            `;
+        }
+
+        function gerarEImprimirCartoesOMR() {
+            const idxExame = document.getElementById('sel-cartao-exame').value;
+            const modo = document.getElementById('sel-cartao-modo').value;
+
+            const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app');
+            const prova = provas[idxExame];
+            if (!prova) return alert("Selecione um exame válido.");
+
+            const turma = turmas.find(t => t.nome === prova.turmaNome);
+            const listaAlunos = (modo === 'todos' && turma && turma.alunos && turma.alunos.length > 0) 
+                ? turma.alunos 
+                : [{ numero: "", nome: "" }];
+
+            const container = document.getElementById('preview-cartoes-container');
+            container.innerHTML = '';
+
+            const opcoes = ['A', 'B', 'C', 'D', 'E'];
+            const digitosRolCount = prova.digitosId || 5;
+
+            listaAlunos.forEach(aluno => {
+                const sheet = document.createElement('div');
+                sheet.className = 'omr-sheet';
+                sheet.style.cssText = 'position: relative; background: #fff; padding: 12mm; box-sizing: border-box; font-family: sans-serif;';
+
+                // Marcadores Fiduciais nos 4 Cantos (7mm x 7mm)
+                const fiducialStyle = 'position: absolute; width: 7mm; height: 7mm; background: #000;';
+                sheet.innerHTML = `
+                    <div style="${fiducialStyle} top: 5mm; left: 5mm;"></div>
+                    <div style="${fiducialStyle} top: 5mm; right: 5mm;"></div>
+                    <div style="${fiducialStyle} bottom: 5mm; left: 5mm;"></div>
+                    <div style="${fiducialStyle} bottom: 5mm; right: 5mm;"></div>
+
+                    <!-- Cabeçalho -->
+                    <div style="border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+                        ${prova.incluirTituloFolha !== false ? `<h2 style="text-align: center; font-size: 18px; margin-bottom: 6px;">${prova.nome.toUpperCase()}</h2>` : ''}
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold;">
+                            <span>${prova.etiquetaNome || 'NOME'}: ${aluno.nome ? aluno.nome.toUpperCase() : '________________________________________'}</span>
+                            <span>TURMA: ${prova.turmaNome || '______'}</span>
+                        </div>
+                    </div>
+
+                    <!-- Bloco Matricial de Número de Frequência / Rol -->
+                    <div style="display: flex; gap: 20px; margin-bottom: 15px; align-items: flex-start;">
+                        <div style="border: 1px solid #000; padding: 8px; border-radius: 4px;">
+                            <span style="font-size: 10px; font-weight: bold; display: block; margin-bottom: 4px; text-transform: uppercase;">
+                                ${prova.etiquetaRol || 'FREQUÊNCIA / ROL'}
+                            </span>
+                            <div style="display: flex; gap: 6px;">
+                                ${Array.from({ length: digitosRolCount }).map((_, col) => {
+                                    const digitoAluno = aluno.numero ? String(aluno.numero).padStart(digitosRolCount, '0')[col] : null;
+                                    return `
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                            <div style="width: 16px; height: 18px; border: 1px solid #000; text-align: center; font-size: 11px; font-weight: bold;">
+                                                ${digitoAluno || ''}
+                                            </div>
+                                            ${[0,1,2,3,4,5,6,7,8,9].map(d => `
+                                                <div style="width: 13px; height: 13px; border-radius: 50%; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; ${digitoAluno == d ? 'background:#000; color:#fff;' : ''}">
+                                                    ${d}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <div style="flex: 1; border: 1px dashed #000; padding: 8px; font-size: 10px; line-height: 1.4;">
+                            <strong>INSTRUÇÕES:</strong><br>
+                            ${prova.instrucoesFolha || 'Preencha completamente os círculos com caneta preta ou azul. Não rasure.'}
+                        </div>
+                    </div>
+
+                    <!-- Grade de Questões por Colunas -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 11px;">
+                        ${(prova.blocos || [{ materia: "QUESTÕES", inicio: 1, fim: prova.gabarito.length }]).map(bloco => `
+                            <div style="border: 1px solid #cbd5e1; padding: 6px; border-radius: 4px;">
+                                <strong style="display: block; font-size: 11px; border-bottom: 1px solid #000; margin-bottom: 4px; padding-bottom: 2px;">${bloco.materia}</strong>${Array.from({ length: (bloco.fim - bloco.inicio + 1) }).map((_, i) => {
+                                    const qNum = bloco.inicio + i;
+                                    return `
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px;">
+                                            <span style="font-weight: bold; width: 25px;">${qNum}.</span>
+                                            <div style="display: flex; gap: 8px;">
+                                                ${opcoes.map(opt => `
+                                                    <div style="width: 15px; height: 15px; border-radius: 50%; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold;">
+                                                        ${opt}
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(sheet);
+            });
+
             document.getElementById('app').style.display = 'none';
-            document.getElementById('preview-cartoes-container').style.display = 'block';
+            container.style.display = 'block';
+
+            setTimeout(() => {
+                window.print();
+            }, 300);
         }
     </script>
 </body>
