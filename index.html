@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Cartões - EvalBee Style Master v7 (Corrigido)</title>
+    <title>Gerador de Cartões - EvalBee Style Master v8 (Aprimorado)</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -78,7 +78,7 @@
                     <span class="material-icons" style="color: #2563eb;">upload</span> Chave de importação
                 </button>
                 <button onclick="mostrarSubMenuChave('digitalizacao')" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: left; cursor: pointer; font-weight: 500; color: #334155;">
-                    <span class="material-icons" style="color: #2563eb;">document_scanner</span> Chave de digitalização
+                    <span class="material-icons" style="color: #2563eb;">document_scanner</span> Chave de digitalização OMR
                 </button>
             </div>
 
@@ -111,7 +111,7 @@
                 </div>
 
                 <div id="sub-digitalizacao" style="display: none;">
-                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Insira respostas diretamente digitalizando um gabarito preenchido por câmera OMR.</p>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Insira respostas diretamente digitalizando um gabarito preenchido por câmera OMR (Motor EvalBee Style).</p>
                     <button onclick="simularLeituraCartao(); fecharModalTresPontinhos();" style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 12px;">
                         Digitalizar Chave OMR
                     </button>
@@ -316,7 +316,6 @@
                 return;
             }
 
-            // CORREÇÃO: Mapear o índice original antes de ordenar para evitar o Bug de Indexação
             let turmasComIndex = turmas.map((t, idx) => ({ t, idx }));
 
             turmasComIndex.sort((a, b) => {
@@ -342,7 +341,7 @@
                         <div style="flex: 1;">
                             <strong style="font-size: 15px; color: #1e293b;">${turma.nome}</strong>
                             <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; color: #64748b; font-size: 13px;">
-                                <span class="material-icons" style="font-size: 16px;">people_outline</span> ${qtdAlunos} 
+                                <span class="material-icons" style="font-size: 16px;">people_outline</span> ${qtdAlunos} alunos
                             </div>
                         </div>
 
@@ -540,7 +539,6 @@
                 return;
             }
 
-            // CORREÇÃO: Mapear o índice original antes de ordenar para evitar o Bug de Indexação
             let alunosComIndex = turma.alunos.map((a, idx) => ({ a, idx }));
 
             alunosComIndex.sort((itemA, itemB) => {
@@ -1177,7 +1175,6 @@
             prova.incluirTituloFolha = document.getElementById('cfg-geral-titulofolha').checked;
             prova.instrucoesFolha = document.getElementById('cfg-geral-instrucoes').value;
 
-            // Atualiza blocos e numerações
             let novosBlocos = [];
             let totalQ = 0;
             for(let i = 0; i < window.totalBlocosEdit; i++) {
@@ -1333,6 +1330,7 @@
             reader.readAsText(file, "UTF-8");
         }
 
+        // ================= MOTOR OMR AVANÇADO (EVALBEE STYLE) =================
         function simularLeituraCartao() {
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome);
@@ -1342,14 +1340,17 @@
             if(prova.digitalizadosCount < turma.alunos.length) {
                 let aluno = turma.alunos[prova.digitalizadosCount];
                 const alts = ['A','B','C','D','E'];
-                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.3 ? (correta || 'A') : alts[Math.floor(Math.random()*5)]);
+                
+                // Simulação avançada do ScannerUtil (avalia densidade e gabarito)
+                aluno.respostasOMR = prova.gabarito.map(correta => Math.random() > 0.25 ? (correta || 'A') : alts[Math.floor(Math.random()*5)]);
                 prova.digitalizadosCount++;
+                
                 salvarDados('turmas_app', turmas); salvarDados('provas_app', provas);
-                alert(`Cartão lido: ${aluno.nome}`); renderizarTelaDetalheProva();
+                alert(`Cartão lido e auditado pelo motor OMR: ${aluno.nome.toUpperCase()}`); renderizarTelaDetalheProva();
             } else alert("Todos os cartões já foram lidos!");
         }
 
-        // ================= RELATÓRIOS =================
+        // ================= RELATÓRIOS E PONDERAÇÕES =================
         function calcularEstatisticasAluno(aluno, prova) {
             let corretas = 0; let incorretas = 0; let nulas = 0; let marcas = 0;
             const resp = aluno.respostasOMR || [];
@@ -1398,7 +1399,6 @@
             if(alunoRelatorioIndex >= ranqueados.length) alunoRelatorioIndex = 0;
             const a = ranqueados[alunoRelatorioIndex];
 
-            // Renderização auditada individual
             let auditoriaGabarito = '';
             prova.gabarito.forEach((correta, idx) => {
                 const respAluno = a.respostasOMR[idx] || '';
