@@ -101,6 +101,21 @@
         </div>
     </div>
 
+    <!-- Modal de Configurações do Exame -->
+    <div id="modal-config-exame" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;" class="no-print">
+        <div style="background: #fff; width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <h3 style="margin-bottom: 15px; font-size: 16px;">Configurações do Exame</h3>
+            <label style="font-size: 12px; font-weight: bold; color: #64748b;">Nome do Exame</label>
+            <input type="text" id="cfg-nome-prova" style="width:100%; padding:8px; margin-bottom:12px; border:1px solid #cbd5e1; border-radius:6px;">
+            <label style="font-size: 12px; font-weight: bold; color: #64748b;">Pontos por Resposta Correta</label>
+            <input type="number" id="cfg-ponto-correto" value="5.0" style="width:100%; padding:8px; margin-bottom:12px; border:1px solid #cbd5e1; border-radius:6px;">
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="fecharModalConfigExame()" class="btn-text" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px;">Cancelar</button>
+                <button onclick="salvarConfigExame()" class="btn-primary">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Elemento para impressão nativa do OMR -->
     <div id="preview-cartoes-container" style="display: none;"></div>
 
@@ -820,7 +835,7 @@
         function abrirSubTela(nome) { subTelaAtual = nome; renderizarApp(); }
         function voltarParaProvas() { provaAtualIndex = null; subTelaAtual = null; renderizarTelaProvas(); }
 
-        // ================= TELA: DETALHE PROVA =================
+        // ================= TELA: DETALHE PROVA (EVALBEE COMPLETO COM TODOS OS ÍCONES) =================
         function renderizarTelaDetalheProva() {
             const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turmas = obterDados('turmas_app'); const turma = turmas.find(t => t.nome === prova.turmaNome);
@@ -829,35 +844,126 @@
             const perc = totalAlunos > 0 ? Math.min(100, Math.round((digitados/totalAlunos)*100)) : 0;
             
             document.getElementById('tela-conteudo').innerHTML = `
-                <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0;">
-                    <button class="btn-text" onclick="voltarParaProvas()" style="padding:0; margin-right:10px;"><span class="material-icons">arrow_back</span></button>
-                    <h1 style="font-size: 16px; font-weight: bold;">Detalhes do exame</h1>
-                </div>
-                <div style="padding: 16px; background: #f8fafc; flex: 1; overflow-y: auto;">
-                    <div style="background: #fff; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <h2 style="font-size: 18px; margin-bottom: 10px;">${prova.nome}</h2>
-                        <p style="font-size: 12px; color: #64748b; margin-bottom: 5px;">Folha digitalizada: ${digitados}/${totalAlunos}</p>
-                        <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px;"><div style="width: ${perc}%; background: #2563eb; height: 100%;"></div></div>
-                        <button onclick="simularLeituraCartao()" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 15px;">Escanear (Simulador)</button>
+                <div style="padding: 12px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-text" onclick="voltarParaProvas()" style="padding:0;"><span class="material-icons">arrow_back</span></button>
+                        <h1 style="font-size: 16px; font-weight: bold;">Detalhes do exame</h1>
                     </div>
+                    <button class="btn-text" onclick="alert('Compartilhar exame')" style="padding:0; color:#2563eb;"><span class="material-icons">share</span></button>
+                </div>
+
+                <div style="padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 6px;">
+                        <span>Folha digitalizada: ${digitados}/${totalAlunos}</span>
+                        <span onclick="abrirSubTela('relatorios')" style="color: #2563eb; font-weight: bold; cursor: pointer;">Ver relatórios</span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow:hidden;"><div style="width: ${perc}%; background: #2563eb; height: 100%;"></div></div>
+                </div>
+
+                <div style="padding: 16px; background: #f8fafc; flex: 1; overflow-y: auto;">
+                    <h3 style="font-size: 13px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Gerenciamento de exames</h3>
                     
-                    <h3 style="font-size: 14px; margin-bottom: 12px;">Gerenciamento de exames</h3>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
-                        <div onclick="abrirSubTela('palavra-chave')" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
-                            <span class="material-icons" style="color: #2563eb; margin-bottom: 8px;">vpn_key</span><br><span style="font-size: 12px;">Palavra-chave</span>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div onclick="abrirSubTela('palavra-chave')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">vpn_key</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Palavra-chave</span>
                         </div>
-                        <div onclick="abrirSubTela('ausentes')" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
-                            <span class="material-icons" style="color: #ef4444; margin-bottom: 8px;">person_remove</span><br><span style="font-size: 12px;">Ausentes</span>
+
+                        <div onclick="simularLeituraCartao()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">document_scanner</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Folha de digitalização</span>
                         </div>
-                        <div onclick="abrirSubTela('relatorios')" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
-                            <span class="material-icons" style="color: #10b981; margin-bottom: 8px;">analytics</span><br><span style="font-size: 12px;">Ver relatórios</span>
+
+                        <div onclick="abrirModalConfigExame()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">settings</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Configurações do exame</span>
                         </div>
-                        <div onclick="exportarExcelResultadosOficial()" style="background: #fff; padding: 16px 8px; text-align: center; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor:pointer;">
-                            <span class="material-icons" style="color: #10b981; margin-bottom: 8px;">description</span><br><span style="font-size: 12px;">Baixar Excel</span>
+
+                        <div onclick="mudarAba('cartoes')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">grid_view</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Folha de OMR/bolha</span>
+                        </div>
+
+                        <div onclick="alert('Recursos da Web')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">devices</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Recursos da Web</span>
+                        </div>
+                    </div>
+
+                    <h3 style="font-size: 13px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Comunicando</h3>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                        <div onclick="abrirSubTela('relatorios')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">description</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Ver relatórios</span>
+                        </div>
+
+                        <div onclick="exportarExcelResultadosOficial()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">table_chart</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Baixar Excel</span>
+                        </div>
+
+                        <div onclick="alert('Análise estatística')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">analytics</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Análise</span>
+                        </div>
+
+                        <div onclick="alert('Publicar resultados')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">publish</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Publicar</span>
+                        </div>
+
+                        <div onclick="abrirSubTela('ausentes')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">person_remove</span>
+                            </div>
+                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Ausentes</span>
                         </div>
                     </div>
                 </div>
             `;
+        }
+
+        // ================= CONFIGURAÇÕES DO EXAME =================
+        function abrirModalConfigExame() {
+            const prova = obterDados('provas_app')[provaAtualIndex];
+            document.getElementById('cfg-nome-prova').value = prova.nome;
+            document.getElementById('cfg-ponto-correto').value = prova.configNotas[0]?.correto || 5.0;
+            document.getElementById('modal-config-exame').style.display = 'flex';
+        }
+        function fecharModalConfigExame() { document.getElementById('modal-config-exame').style.display = 'none'; }
+        function salvarConfigExame() {
+            const novoNome = document.getElementById('cfg-nome-prova').value.trim();
+            const novoValor = parseFloat(document.getElementById('cfg-ponto-correto').value) || 5.0;
+            if(novoNome) {
+                const provas = obterDados('provas_app');
+                provas[provaAtualIndex].nome = novoNome;
+                Object.keys(provas[provaAtualIndex].configNotas).forEach(k => {
+                    provas[provaAtualIndex].configNotas[k].correto = novoValor;
+                });
+                salvarDados('provas_app', provas);
+                fecharModalConfigExame();
+                renderizarTelaDetalheProva();
+                alert("Configurações salvas com sucesso!");
+            }
         }
 
         // ================= TELA DE AUSENTES =================
