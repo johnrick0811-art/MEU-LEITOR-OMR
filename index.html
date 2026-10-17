@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Cartões - EvalBee Style Completo</title>
+    <title>Gerador de Cartões - EvalBee Style Completo v2</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -133,6 +133,17 @@
         </div>
     </div>
 
+    <!-- Modal Ajuda Marcadores Parciais / Opcionais -->
+    <div id="modal-ajuda-info" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;" class="no-print">
+        <div style="background: #fff; width: 85%; max-width: 350px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <h3 id="titulo-ajuda-modal" style="font-size: 16px; margin-bottom: 8px; color: #1e293b;">Informação</h3>
+            <p id="texto-ajuda-modal" style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;"></p>
+            <div style="display: flex; justify-content: flex-end;">
+                <button onclick="document.getElementById('modal-ajuda-info').style.display='none'" class="btn-primary" style="padding: 6px 16px;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Configurações do Exame -->
     <div id="modal-config-exame" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;" class="no-print">
         <div style="background: #fff; width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
@@ -172,7 +183,12 @@
         let filtroAlunosCriterio = 'numero'; 
         let filtroAlunosOrdem = 'asc';        
 
-        let blocosTemporarios = [];
+        // Wizard de Criação de Exame Avançado (Estilo EvalBee Vídeo)
+        let criacaoPasso = 1;
+        let dadosNovoExame = {
+            nome: "", turmaIdx: "", digitosRol: 5, conjuntos: 1, assuntosCount: 1,
+            assuntos: [{ materia: "Assunto 1", secoesCount: 1, q: 10, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false }]
+        };
 
         document.addEventListener("DOMContentLoaded", () => {
             renderizarApp();
@@ -731,58 +747,126 @@
         }
         function voltarParaTurmas() { turmaAtualIndex = null; renderizarTelaTurmas(); }
 
-        // ================= TELA DE PROVAS E BLOCOS =================
+        // ================= TELA DE PROVAS E WIZARD DE CRIAÇÃO AVANÇADA =================
         function renderizarTelaProvas() {
             const container = document.getElementById('tela-conteudo');
-            const turmas = obterDados('turmas_app');
-            let optionsTurmas = '<option value="">(Sem Turma Vinculada)</option>';
-            turmas.forEach((t, idx) => { optionsTurmas += `<option value="${idx}">${t.nome}</option>`; });
+            if (criacaoPasso === 1) {
+                let turmas = obterDados('turmas_app');
+                let optT = '<option value="">(Sem Turma Vinculada)</option>';
+                turmas.forEach((t, i) => optT += `<option value="${i}">${t.nome}</option>`);
 
-            container.innerHTML = `
-                <header class="app-header">
-                    <h1>Exames</h1>
-                    <div style="display: flex; gap: 4px; align-items: center;">
-                        <button class="btn-text" onclick="toggleModoSelecaoProvas()" style="color: ${modoSelecaoProvas ? '#ef4444' : '#64748b'};"><span class="material-icons">${modoSelecaoProvas ? 'close' : 'delete_sweep'}</span></button>
-                        <button class="btn-primary" onclick="abrirModalProva()"><span class="material-icons">add</span> Adicionar novo</button>
+                container.innerHTML = `
+                    <header class="app-header">
+                        <h1>Exames</h1>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <button class="btn-text" onclick="toggleModoSelecaoProvas()" style="color: ${modoSelecaoProvas ? '#ef4444' : '#64748b'};"><span class="material-icons">${modoSelecaoProvas ? 'close' : 'delete_sweep'}</span></button>
+                            <button class="btn-primary" onclick="criacaoPasso=2; renderizarTelaProvas();"><span class="material-icons">add</span> Adicionar novo</button>
+                        </div>
+                    </header>
+                    <hr class="divider">
+                    <div class="lista-container" id="lista-provas-geral"></div>
+                    ${modoSelecaoProvas ? `<div style="padding: 10px; background: #fff; border-top: 1px solid #e2e8f0;"><button class="btn-primary" onclick="excluirProvasSelecionadas()" style="background: #ef4444; width: 100%; justify-content: center;">Excluir Exames Marcados</button></div>` : ''}
+                `;
+                renderizarListaProvasProcessada();
+            } else if (criacaoPasso === 2) {
+                // Wizard Passo 1: Dígitos, Conjuntos e Quantidade de Assuntos
+                container.innerHTML = `
+                    <div class="app-header">
+                        <button class="btn-text" onclick="criacaoPasso=1; renderizarTelaProvas();">Cancelar</button>
+                        <h1 style="font-size: 16px;">Criar Exame (1/2)</h1>
+                        <button class="btn-primary" onclick="criacaoPasso=3; renderizarTelaProvas();">Próximo</button>
                     </div>
-                </header>
-                <hr class="divider">
+                    <div class="form-card" style="flex: 1; overflow-y: auto;">
+                        <input type="text" id="novo-exame-nome" placeholder="Nome do Exame" style="margin-bottom: 15px; font-weight: bold;" value="${dadosNovoExame.nome}">
+                        
+                        <label style="font-size: 12px; font-weight: bold; color: #64748b;">Turma:</label>
+                        <select id="novo-exame-turma">
+                            <option value="">(Sem Turma Vinculada)</option>
+                            ${obterDados('turmas_app').map((t, i) => `<option value="${t.nome}" ${dadosNovoExame.turmaNome === t.nome ? 'selected' : ''}>${t.nome}</option>`).join('')}
+                        </select>
 
-                <div id="form-prova" class="form-card" style="display: none;">
-                    <h3>Criar Exame</h3>
-                    <input type="text" id="nome-prova" placeholder="Nome do Exame">
-                    <label style="font-size: 12px; color: #64748b; font-weight: bold;">Turma:</label>
-                    <select id="select-turma-prova">${optionsTurmas}</select>
-                    
-                    <label style="font-size: 12px; color: #64748b; font-weight: bold;">Disciplinas (Seções):</label>
-                    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 10px;">
-                        <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px;">
-                            <label style="font-size: 12px; font-weight: bold; color: #2563eb;">Questões por Bloco (máx 100):</label>
-                            <input type="number" id="novo-bloco-qtd" value="10" min="1" max="100" style="padding: 10px; font-weight: bold; width: 100%; border: 2px solid #2563eb;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#fff; padding:8px; border:1px solid #cbd5e1; border-radius:8px;">
+                            <span>Dígitos do núm. do rolo</span>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <button class="btn-primary" onclick="if(dadosNovoExame.digitosRol>1){dadosNovoExame.digitosRol--; renderizarTelaProvas();}" style="padding:4px 8px;">-</button>
+                                <strong id="val-dig-rol">${dadosNovoExame.digitosRol}</strong>
+                                <button class="btn-primary" onclick="dadosNovoExame.digitosRol++; renderizarTelaProvas();" style="padding:4px 8px;">+</button>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 6px; margin-top:8px;">
-                            <input type="text" id="novo-bloco-nome" placeholder="Nome da Disciplina..." style="margin-bottom: 0; flex: 1; padding: 8px;">
-                            <button type="button" class="btn-primary" onclick="adicionarBlocoTempManual()" style="background-color: #059669;">+</button>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#fff; padding:8px; border:1px solid #cbd5e1; border-radius:8px;">
+                            <span>Conjuntos de exames</span>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <button class="btn-primary" onclick="if(dadosNovoExame.conjuntos>1){dadosNovoExame.conjuntos--; renderizarTelaProvas();}" style="padding:4px 8px;">-</button>
+                                <strong id="val-conj">${dadosNovoExame.conjuntos}</strong>
+                                <button class="btn-primary" onclick="dadosNovoExame.conjuntos++; renderizarTelaProvas();" style="padding:4px 8px;">+</button>
+                            </div>
                         </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#fff; padding:8px; border:1px solid #cbd5e1; border-radius:8px;">
+                            <span>Assuntos</span>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <button class="btn-primary" onclick="removerAssuntoWizard()" style="padding:4px 8px;">-</button>
+                                <strong id="val-assun">${dadosNovoExame.assuntos.length}</strong>
+                                <button class="btn-primary" onclick="adicionarAssuntoWizard()" style="padding:4px 8px;">+</button>
+                            </div>
+                        </div>
+
+                        <div id="lista-assuntos-wizard"></div>
                     </div>
-                    <div id="lista-blocos-temp" style="max-height: 120px; overflow-y: auto; background: #f1f5f9; padding: 8px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #cbd5e1;"></div>
-                    <div class="form-actions">
-                        <button class="btn-text" onclick="fecharModalProva()">Cancelar</button>
-                        <button class="btn-primary" onclick="salvarProva()">Salvar Exame</button>
+                `;
+                renderizarAssuntosWizard();
+            } else if (criacaoPasso === 3) {
+                // Wizard Passo 2: Configurações de Questões, Tipos e Pesos
+                let htmlSecoes = '';
+                dadosNovoExame.assuntos.forEach((ass, aIdx) => {
+                    htmlSecoes += `
+                        <div style="background:#fff; padding:12px; border-radius:8px; border:1px solid #cbd5e1; margin-bottom:15px;">
+                            <h4 style="color:#2563eb; margin-bottom:8px;">${ass.materia}</h4>
+                            <label style="font-size:12px; font-weight:bold; color:#64748b;">Número de perguntas</label>
+                            <input type="number" value="${ass.q}" onchange="dadosNovoExame.assuntos[${aIdx}].q = parseInt(this.value)||1">
+                            
+                            <label style="font-size:12px; font-weight:bold; color:#64748b;">Tipo de pergunta</label>
+                            <select onchange="dadosNovoExame.assuntos[${aIdx}].tipo = this.value">
+                                <option ${ass.tipo==='5 option'?'selected':''}>5 option</option>
+                                <option ${ass.tipo==='4 option'?'selected':''}>4 option</option>
+                                <option ${ass.tipo==='3 option'?'selected':''}>3 option</option>
+                                <option ${ass.tipo==='TrueOrFalse'?'selected':''}>TrueOrFalse</option>
+                                <option ${ass.tipo==='Matrix'?'selected':''}>Matrix</option>
+                                <option ${ass.tipo==='Numerical'?'selected':''}>Numerical</option>
+                            </select>
+
+                            <label style="font-size:12px; font-weight:bold; color:#64748b;">Pontos por Correta</label>
+                            <input type="number" step="0.5" value="${ass.corretto}" onchange="dadosNovoExame.assuntos[${aIdx}].corretto = parseFloat(this.value)||5.0">
+
+                            <label style="font-size:12px; font-weight:bold; color:#64748b;">Pontos por Incorreta</label>
+                            <input type="number" step="0.5" value="${ass.incorreto}" onchange="dadosNovoExame.assuntos[${aIdx}].incorreto = parseFloat(this.value)||0.0">
+
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                <label style="font-size:13px;">Permitir marcas parciais</label>
+                                <input type="checkbox" ${ass.parcial?'checked':''} onchange="dadosNovoExame.assuntos[${aIdx}].parcial = this.checked">
+                                <button class="btn-text" onclick="mostrarAjudaModal('Marcas Parciais', 'Atribui notas para acertos parciais.')">❓</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = `
+                    <div class="app-header">
+                        <button class="btn-text" onclick="criacaoPasso=2; renderizarTelaProvas();">Anterior</button>
+                        <h1 style="font-size: 16px;">Configuração (2/2)</h1>
+                        <button class="btn-primary" onclick="finalizarCriacaoExame()">Salvar Exame</button>
                     </div>
-                </div>
-                
-                <div class="lista-container" id="lista-provas"></div>
-                ${modoSelecaoProvas ? `<div style="padding: 10px; background: #fff; border-top: 1px solid #e2e8f0;"><button class="btn-primary" onclick="excluirProvasSelecionadas()" style="background: #ef4444; width: 100%; justify-content: center;">Excluir Exames Marcados</button></div>` : ''}
-            `;
-            renderizarListaProvasProcessada();
+                    <div class="form-card" style="flex: 1; overflow-y: auto;">
+                        ${htmlSecoes}
+                    </div>
+                `;
+            }
         }
 
-        function toggleModoSelecaoProvas(){ modoSelecaoProvas = !modoSelecaoProvas; renderizarTelaProvas(); }
-        
         function renderizarListaProvasProcessada() {
             const provas = obterDados('provas_app');
-            const lista = document.getElementById('lista-provas');
+            const lista = document.getElementById('lista-provas-geral');
             if (provas.length === 0) return lista.innerHTML = `<div class="empty-state"><span class="material-icons">quiz</span><p>Nenhum exame cadastrado</p></div>`;
             
             lista.innerHTML = '';
@@ -793,7 +877,7 @@
                     <div class="turma-info" onclick="entrarNaProva(${index})" style="display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1;">
                         ${modoSelecaoProvas ? `<input type="checkbox" class="prova-checkbox" value="${index}" style="width: 18px; height: 18px;">` : ''}
                         <span class="material-icons" style="color: #7c3aed;">assignment</span>
-                        <div><strong>${prova.nome}</strong><small style="display: block; color: #64748b;">Turma: ${prova.turmaNome} • ${totalQ} Q</small></div>
+                        <div><strong>${prova.nome}</strong><small style="display: block; color: #64748b;">Turma: ${prova.turmaNome || 'Geral'} • ${totalQ} Q</small></div>
                     </div>
                     <div style="display: flex; gap: 4px; ${modoSelecaoProvas ? 'display:none;' : ''}">
                         <button class="btn-text" onclick="deletarProva(event, ${index})"><span class="material-icons" style="color: #ef4444;">delete</span></button>
@@ -802,6 +886,8 @@
                 lista.appendChild(item);
             });
         }
+
+        function toggleModoSelecaoProvas(){ modoSelecaoProvas = !modoSelecaoProvas; renderizarTelaProvas(); }
 
         function excluirProvasSelecionadas() {
             const checkboxes = document.querySelectorAll('.prova-checkbox:checked');
@@ -814,51 +900,66 @@
             }
         }
 
-        function abrirModalProva() {
-            blocosTemporarios = [{ materia: "GERAL", qtd: 10 }];
-            atualizarListaBlocosTemp();
-            document.getElementById('form-prova').style.display = 'block';
+        function adicionarAssuntoWizard() {
+            let n = dadosNovoExame.assuntos.length + 1;
+            dadosNovoExame.assuntos.push({ materia: `Assunto ${n}`, secoesCount: 1, q: 10, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false });
+            renderizarAssuntosWizard();
         }
-        function fecharModalProva() { document.getElementById('form-prova').style.display = 'none'; }
-        
-        function adicionarBlocoTempManual() {
-            const n = document.getElementById('novo-bloco-nome').value.trim().toUpperCase();
-            let qtd = parseInt(document.getElementById('novo-bloco-qtd').value) || 10;
-            if (n) { blocosTemporarios.push({ materia: n, qtd }); document.getElementById('novo-bloco-nome').value = ""; atualizarListaBlocosTemp(); }
+
+        function removerAssuntoWizard() {
+            if(dadosNovoExame.assuntos.length > 1) { dadosNovoExame.assuntos.pop(); renderizarAssuntosWizard(); }
         }
-        function removerBlocoTemp(index) { blocosTemporarios.splice(index, 1); atualizarListaBlocosTemp(); }
-        
-        function atualizarListaBlocosTemp() {
-            const container = document.getElementById('lista-blocos-temp');
-            if(blocosTemporarios.length === 0) return container.innerHTML = '<small>Nenhum bloco.</small>';
+
+        function renderizarAssuntosWizard() {
+            const container = document.getElementById('lista-assuntos-wizard');
+            if(!container) return;
             let html = '';
-            blocosTemporarios.forEach((b, idx) => {
-                html += `<div style="display:flex; justify-content:space-between; background:#fff; padding:6px; margin-bottom:4px; border:1px solid #cbd5e1; font-size:13px; border-radius:4px;">
-                            <span>${b.materia} (${b.qtd} Q)</span>
-                            <button onclick="removerBlocoTemp(${idx})" style="border:none; background:none; color:red;">X</button>
-                       </div>`;
+            dadosNovoExame.assuntos.forEach((ass, idx) => {
+                html += `
+                    <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center; background:#f1f5f9; padding:8px; border-radius:8px;">
+                        <span style="font-weight:bold; font-size:13px; width:20px;">${idx+1}</span>
+                        <input type="text" value="${ass.materia}" onchange="dadosNovoExame.assuntos[${idx}].materia = this.value.toUpperCase()" style="margin-bottom:0; flex:1; padding:6px;">
+                    </div>
+                `;
             });
             container.innerHTML = html;
         }
 
-        function salvarProva() {
-            const nome = document.getElementById('nome-prova').value.trim();
-            const tIdx = document.getElementById('select-turma-prova').value;
-            if (nome && blocosTemporarios.length > 0) {
-                let turmas = obterDados('turmas_app');
-                let tNome = tIdx !== "" ? turmas[tIdx].nome : "Geral";
-                let blocosProc = []; let totalQ = 0;
-                blocosTemporarios.forEach(b => { blocosProc.push({ materia: b.materia, inicio: totalQ + 1, fim: totalQ + b.qtd }); totalQ += b.qtd; });
-                
-                let cfgs = {}; for(let i=0; i<totalQ; i++) cfgs[i] = { correto: 5.0, incorreto: 0.0, parcial: false };
+        function finalizarCriacaoExame() {
+            const nomeInput = document.getElementById('novo-exame-nome');
+            const turmaSelect = document.getElementById('novo-exame-turma');
+            if(nomeInput) dadosNovoExame.nome = nomeInput.value.trim();
+            if(turmaSelect) dadosNovoExame.turmaNome = turmaSelect.value;
+            if(!dadosNovoExame.nome) return alert("Insira o nome do exame.");
 
-                const provas = obterDados('provas_app');
-                provas.push({
-                    nome, turmaNome: tNome, digitosId: 4, blocos: blocosProc, gabarito: Array(totalQ).fill('A'),
-                    configNotas: cfgs, digitalizadosCount: 0, timestamp: Date.now()
-                });
-                salvarDados('provas_app', provas); fecharModalProva(); renderizarTelaProvas();
-            } else alert("Insira um nome e blocos.");
+            let totalQ = 0;
+            let blocosProc = [];
+            let cfgs = {};
+
+            dadosNovoExame.assuntos.forEach(ass => {
+                blocosProc.push({ materia: ass.materia, inicio: totalQ + 1, fim: totalQ + ass.q });
+                for(let i=0; i<ass.q; i++) {
+                    cfgs[totalQ + i] = { correto: ass.corretto, incorreto: ass.incorreto, parcial: ass.parcial };
+                }
+                totalQ += ass.q;
+            });
+
+            let provas = obterDados('provas_app');
+            provas.push({
+                nome: dadosNovoExame.nome,
+                turmaNome: dadosNovoExame.turmaNome || "Geral",
+                digitosId: dadosNovoExame.digitosRol,
+                conjuntos: dadosNovoExame.conjuntos,
+                blocos: blocosProc,
+                gabarito: Array(totalQ).fill('A'),
+                configNotas: cfgs,
+                digitalizadosCount: 0,
+                timestamp: Date.now()
+            });
+            salvarDados('provas_app', provas);
+            criacaoPasso = 1;
+            dadosNovoExame = { nome: "", turmaIdx: "", digitosRol: 5, conjuntos: 1, assuntosCount: 1, assuntos: [{ materia: "Assunto 1", secoesCount: 1, q: 10, tipo: "5 option", corretto: 5.0, incorreto: 0.0, parcial: false }] };
+            renderizarTelaProvas();
         }
 
         function deletarProva(e, index) { e.stopPropagation(); if(confirm("Excluir prova?")) { const p = obterDados('provas_app'); p.splice(index, 1); salvarDados('provas_app', p); renderizarTelaProvas(); } }
@@ -866,16 +967,15 @@
         function entrarNaProva(index) { provaAtualIndex = index; subTelaAtual = null; renderizarTelaDetalheProva(); }
         function abrirSubTela(nome) { subTelaAtual = nome; renderizarApp(); }
         function voltarParaProvas() { provaAtualIndex = null; subTelaAtual = null; renderizarTelaProvas(); }
+        function mostrarAjudaModal(t, txt) { document.getElementById('titulo-ajuda-modal').innerText = t; document.getElementById('texto-ajuda-modal').innerText = txt; document.getElementById('modal-ajuda-info').style.display = 'flex'; }
 
-        // ================= TELA: DETALHE PROVA (EVALBEE COMPLETO COM TODOS OS ÍCONES) =================
+        // ================= TELA: DETALHE PROVA =================
         function renderizarTelaDetalheProva() {
             const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turmas = obterDados('turmas_app'); const turma = turmas.find(t => t.nome === prova.turmaNome);
             const totalAlunos = turma && turma.alunos ? turma.alunos.length : 0;
             const digitados = prova.digitalizadosCount || 0;
             const perc = totalAlunos > 0 ? Math.min(100, Math.round((digitados/totalAlunos)*100)) : 0;
-            
-            // Verifica se tem respostas preenchidas para mostrar "Chave salva" ou "Não disponível"
             const temChaveSalva = prova.gabarito && prova.gabarito.some(r => r !== "");
             
             document.getElementById('tela-conteudo').innerHTML = `
@@ -884,10 +984,8 @@
                         <button class="btn-text" onclick="voltarParaProvas()" style="padding:0;"><span class="material-icons">arrow_back</span></button>
                         <h1 style="font-size: 16px; font-weight: bold;">Detalhes do exame</h1>
                     </div>
-                    <button class="btn-text" onclick="alert('Compartilhar exame')" style="padding:0; color:#2563eb;"><span class="material-icons">share</span></button>
                 </div>
 
-                <!-- Card Superior Estilo Exato do Vídeo -->
                 <div style="padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -897,15 +995,12 @@
                             </div>
                             <span style="font-weight: bold; font-size: 15px; color: #1e293b;">${prova.nome}</span>
                         </div>
-                        <div style="background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; color: #475569; display: flex; align-items: center; gap: 4px;">
-                            <span class="material-icons" style="font-size: 14px;">lock</span> Privado
-                        </div>
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 15px; font-size: 12px; color: #64748b; margin-bottom: 10px;">
                         <span>❓ ${prova.gabarito.length}</span>
                         <span>${temChaveSalva ? '🔑 Chave salva' : '🔒 Não disponível'}</span>
-                        <span>👥 ${prova.turmaNome || 'A2'}</span>
+                        <span>👥 ${prova.turmaNome || 'Geral'}</span>
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -916,88 +1011,51 @@
                 </div>
 
                 <div style="padding: 16px; background: #f8fafc; flex: 1; overflow-y: auto;">
-                    <h3 style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Gerenciamento de exames</h3>
+                    <h3 style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase;">Gerenciamento de exames</h3>
                     
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
                         <div onclick="abrirSubTela('palavra-chave')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">vpn_key</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Palavra-chave</span>
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">vpn_key</span></div>
+                            <span style="font-size: 12px; color: #334155; text-align: center;">Palavra-chave</span>
                         </div>
 
                         <div onclick="simularLeituraCartao()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">document_scanner</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Folha de digitalização</span>
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">document_scanner</span></div>
+                            <span style="font-size: 12px; color: #334155; text-align: center;">Digitalizar</span>
                         </div>
 
                         <div onclick="abrirModalConfigExame()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">settings</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Configurações do exame</span>
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">settings</span></div>
+                            <span style="font-size: 12px; color: #334155; text-align: center;">Configurações</span>
                         </div>
 
                         <div onclick="mudarAba('cartoes')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">grid_view</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Folha de OMR/bolha</span>
-                        </div>
-
-                        <div onclick="alert('Recursos da Web')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">devices</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Recursos da Web</span>
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">grid_view</span></div>
+                            <span style="font-size: 12px; color: #334155; text-align: center;">Folha OMR</span>
                         </div>
                     </div>
 
-                    <h3 style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Comunicando</h3>
-
+                    <h3 style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 12px; text-transform: uppercase;">Comunicando</h3>
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                         <div onclick="abrirSubTela('relatorios')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">description</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Ver relatórios</span>
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">description</span></div>
+                            <span style="font-size: 12px; color: #334155; text-align: center;">Relatórios</span>
                         </div>
 
                         <div onclick="exportarExcelResultadosOficial()" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">table_chart</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Baixar Excel</span>
-                        </div>
-
-                        <div onclick="alert('Análise estatística')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">analytics</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Análise</span>
-                        </div>
-
-                        <div onclick="alert('Publicar resultados')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">publish</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Publicar</span>
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">table_chart</span></div>
+                            <span style="font-size: 12px; color: #334155; text-align: center;">Baixar Excel</span>
                         </div>
 
                         <div onclick="abrirSubTela('ausentes')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                                <span class="material-icons" style="color: #2563eb; font-size: 24px;">person_remove</span>
-                            </div>
-                            <span style="font-size: 12px; color: #334155; text-align: center; line-height: 1.2;">Ausentes</span>
+                            <div style="width: 56px; height: 56px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;"><span class="material-icons" style="color: #2563eb;">person_remove</span></div>
+                            <span style="font-size: 12px; color: #334155; text-align: center;">Ausentes</span>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        // ================= CONFIGURAÇÕES DO EXAME =================
         function abrirModalConfigExame() {
             const prova = obterDados('provas_app')[provaAtualIndex];
             document.getElementById('cfg-nome-prova').value = prova.nome;
@@ -1017,27 +1075,19 @@
                 salvarDados('provas_app', provas);
                 fecharModalConfigExame();
                 renderizarTelaDetalheProva();
-                alert("Configurações salvas com sucesso!");
+                alert("Configurações salvas!");
             }
         }
 
-        // ================= TELA DE AUSENTES =================
         function renderizarTelaAusentes() {
-            const provas = obterDados('provas_app');
-            const turmas = obterDados('turmas_app');
-            const prova = provas[provaAtualIndex];
-            const turma = turmas.find(t => t.nome === prova.turmaNome);
+            const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app');
+            const prova = provas[provaAtualIndex]; const turma = turmas.find(t => t.nome === prova.turmaNome);
             const alunos = turma ? (turma.alunos || []) : [];
             const ausentes = alunos.filter(a => !a.respostasOMR || a.respostasOMR.length === 0);
 
             let listaHTML = '';
             ausentes.forEach(a => {
-                listaHTML += `
-                    <div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 16px; align-items: center;">
-                        <span style="color: #64748b; width: 30px; font-weight: bold;">${a.numero || '--'}</span>
-                        <strong style="color: #334155; font-size: 14px;">${a.nome.toUpperCase()}</strong>
-                    </div>
-                `;
+                listaHTML += `<div style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 16px; align-items: center;"><span style="color: #64748b; width: 30px; font-weight: bold;">${a.numero || '--'}</span><strong style="color: #334155; font-size: 14px;">${a.nome.toUpperCase()}</strong></div>`;
             });
 
             document.getElementById('tela-conteudo').innerHTML = `
@@ -1047,13 +1097,11 @@
                         <h1 style="font-size: 18px; font-weight: 600;">Ausentes - ${ausentes.length}</h1>
                     </div>
                 </div>
-                <div style="flex: 1; overflow-y: auto; background: #fff;">
-                    ${listaHTML || '<div style="padding: 20px; text-align: center; color: #64748b;">Nenhum aluno ausente. Todos tiveram o cartão lido!</div>'}
-                </div>
+                <div style="flex: 1; overflow-y: auto; background: #fff;">${listaHTML || '<div style="padding: 20px; text-align: center; color: #64748b;">Nenhum aluno ausente!</div>'}</div>
             `;
         }
 
-        // ================= TELA: GABARITO (PALAVRA-CHAVE) =================
+        // ================= PALAVRA-CHAVE =================
         function renderizarTelaPalavraChave() {
             const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             let linhasHTML = ''; let ultMateria = "";
@@ -1085,21 +1133,13 @@
 
         function mudarRespostaGabarito(i, alt) { 
             const p = obterDados('provas_app'); 
-            // Se já for a mesma, desmarca (clique duplo)
-            if (p[provaAtualIndex].gabarito[i] === alt) {
-                p[provaAtualIndex].gabarito[i] = "";
-            } else {
-                p[provaAtualIndex].gabarito[i] = alt; 
-            }
+            if (p[provaAtualIndex].gabarito[i] === alt) p[provaAtualIndex].gabarito[i] = "";
+            else p[provaAtualIndex].gabarito[i] = alt; 
             salvarDados('provas_app', p); 
             renderizarTelaPalavraChave(); 
         }
 
-        function salvarChaveGabaritoTela() {
-            alert("Chave salva com sucesso!");
-            abrirSubTela(null);
-        }
-
+        function salvarChaveGabaritoTela() { alert("Chave salva com sucesso!"); abrirSubTela(null); }
         function abrirModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'flex'; }
         function fecharModalReiniciar() { document.getElementById('modal-confirmar-reiniciar').style.display = 'none'; }
         
@@ -1112,7 +1152,6 @@
         }
 
         function fecharModalTresPontinhos() { document.getElementById('modal-tres-pontinhos').style.display='none'; }
-        
         function mostrarSubMenuChave(tipo) { 
             document.getElementById('menu-base-chave').style.display='none'; 
             document.getElementById('submenu-conteudo-chave').style.display='block'; 
@@ -1122,22 +1161,14 @@
 
         function executarBaixarChaveConfirmado() {
             const formato = document.querySelector('input[name="formato-chave-baixar"]:checked').value;
-            const provas = obterDados('provas_app');
-            const prova = provas[provaAtualIndex];
-            fecharModalTresPontinhos();
-            voltarMenuChave();
-
+            const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
+            fecharModalTresPontinhos(); voltarMenuChave();
             if (formato === 'csv') {
-                let csvContent = "Q,KEY\n";
-                prova.gabarito.forEach((resp, i) => { csvContent += `${i + 1},${resp || ''}\n`; });
+                let csvContent = "Q,KEY\n"; prova.gabarito.forEach((resp, i) => { csvContent += `${i + 1},${resp || ''}\n`; });
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                link.setAttribute("href", URL.createObjectURL(blob));
-                link.setAttribute("download", `${prova.nome}_gab.csv`);
-                document.body.appendChild(link); link.click(); link.remove();
-            } else if (formato === 'pdf') {
-                window.print();
-            }
+                const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob));
+                link.setAttribute("download", `${prova.nome}_gab.csv`); document.body.appendChild(link); link.click(); link.remove();
+            } else if (formato === 'pdf') { window.print(); }
         }
 
         function processarImportacaoChaveCSV(event) {
@@ -1145,37 +1176,25 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const linhas = e.target.result.split(/\r\n|\n/);
-                const provas = obterDados('provas_app');
-                const prova = provas[provaAtualIndex];
+                const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
                 let atualizadas = 0;
-
                 linhas.forEach((linha, idx) => {
                     if (linha.trim() === "") return;
-                    const limpa = linha.replace(/"/g, '');
-                    const col = limpa.split(/,|;/);
+                    const limpa = linha.replace(/"/g, ''); const col = limpa.split(/,|;/);
                     if (idx === 0 && (col[0].toUpperCase().includes('Q') || col[0].toUpperCase().includes('QUESTAO'))) return;
-
                     if (col.length >= 2) {
-                        const qNum = parseInt(col[0].trim()) - 1;
-                        const resp = col[1].trim().toUpperCase();
+                        const qNum = parseInt(col[0].trim()) - 1; const resp = col[1].trim().toUpperCase();
                         if (!isNaN(qNum) && qNum >= 0 && qNum < prova.gabarito.length && ['A','B','C','D','E'].includes(resp)) {
-                            prova.gabarito[qNum] = resp;
-                            atualizadas++;
+                            prova.gabarito[qNum] = resp; atualizadas++;
                         }
                     }
                 });
-
-                salvarDados('provas_app', provas);
-                fecharModalTresPontinhos();
-                voltarMenuChave();
-                renderizarTelaPalavraChave();
-                alert(`${atualizadas} respostas da chave atualizadas com sucesso!`);
-                document.getElementById('input-arquivo-chave').value = '';
+                salvarDados('provas_app', provas); fecharModalTresPontinhos(); voltarMenuChave(); renderizarTelaPalavraChave();
+                alert(`${atualizadas} respostas atualizadas!`); document.getElementById('input-arquivo-chave').value = '';
             };
             reader.readAsText(file, "UTF-8");
         }
 
-        // ================= SIMULAR LEITURA (MOTOR) =================
         function simularLeituraCartao() {
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome);
@@ -1192,7 +1211,7 @@
             } else alert("Todos os cartões já foram lidos!");
         }
 
-        // ================= RELATÓRIOS E CALCULO =================
+        // ================= RELATÓRIOS =================
         function calcularEstatisticasAluno(aluno, prova) {
             let corretas = 0; let incorretas = 0; let nulas = 0; let marcas = 0;
             const resp = aluno.respostasOMR || [];
@@ -1216,14 +1235,8 @@
             ranqueados.forEach((a, rank) => {
                 html += `
                     <div style="background:#fff; padding:12px 16px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items: center; cursor:pointer;" onclick="alunoRelatorioIndex=${rank}; abrirSubTela('relatorio-detalhe');">
-                        <div>
-                            <strong style="display:block; font-size:14px; color:#1e293b;">${a.nome.toUpperCase()}</strong>
-                            <small style="color:#64748b;">${a.numero || '--'}</small>
-                        </div>
-                        <div style="text-align:right;">
-                            <strong style="color:#2563eb; display:block; font-size:15px;">${a.stats.marcas} pts</strong>
-                            <span style="font-size:12px; color:#16a34a;">✔ ${a.stats.corretas}</span>
-                        </div>
+                        <div><strong style="display:block; font-size:14px; color:#1e293b;">${a.nome.toUpperCase()}</strong><small style="color:#64748b;">${a.numero || '--'}</small></div>
+                        <div style="text-align:right;"><strong style="color:#2563eb; display:block; font-size:15px;">${a.stats.marcas} pts</strong><span style="font-size:12px; color:#16a34a;">✔ ${a.stats.corretas}</span></div>
                     </div>
                 `;
             });
@@ -1271,7 +1284,6 @@
             `;
         }
 
-        // ================= EDIÇÃO LÁPIS (EDITAR RESPOSTAS) =================
         function renderizarTelaEditarRespostasAluno() {
             const idxOriginal = window.alunoEditandoIdx;
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app'); const prova = provas[provaAtualIndex];
@@ -1302,7 +1314,6 @@
             salvarDados('turmas_app', turmas); renderizarTelaEditarRespostasAluno();
         }
 
-        // ================= EXPORTAR EXCEL =================
         function exportarExcelResultadosOficial() {
             const provas = obterDados('provas_app'); const turmas = obterDados('turmas_app'); const prova = provas[provaAtualIndex];
             const turma = turmas.find(t => t.nome === prova.turmaNome); const alunos = turma ? (turma.alunos || []) : [];
@@ -1318,7 +1329,7 @@
             XLSX.writeFile(wb, `${prova.nome}.xlsx`);
         }
 
-        // ================= IMPRESSÃO OMR NATIVA EM BLOCO =================
+        // ================= IMPRESSÃO OMR =================
         function renderizarTelaGeradorCartoesLote() {
             const turmas = obterDados('turmas_app'); const provas = obterDados('provas_app');
             let oT = '<option value="">Selecione a Classe...</option>'; turmas.forEach((t,i)=> oT += `<option value="${i}">${t.nome}</option>`);
@@ -1348,7 +1359,7 @@
                 (prova.blocos||[]).forEach(bloco => {
                     let itens = '';
                     for (let i = bloco.inicio - 1; i < bloco.fim; i++) {
-                        itens += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; font-family:sans-serif;"><span style="font-size:8px; font-weight:bold; width:15px;">${i+1}.</span><div style="display:flex; gap:2px;">${['A','B','C','D','E'].map(a=>`<span style="width:10px;height:10px;border:1px solid #000;border-radius:50%;font-size:6px;display:flex;align-items:center;justify-content:center;">${a}</span>`).join('')}</div></div>`;
+                        itens += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="font-size:8px; font-weight:bold; width:15px;">${i+1}.</span><div style="display:flex; gap:2px;">${['A','B','C','D','E'].map(a=>`<span style="width:10px;height:10px;border:1px solid #000;border-radius:50%;font-size:6px;display:flex;align-items:center;justify-content:center;">${a}</span>`).join('')}</div></div>`;
                     }
                     blocosHTML += `<div style="border:1px solid #000; padding:2px; margin-bottom:5px;"><div style="font-size:7px; font-weight:bold; text-align:center; border-bottom:1px solid #000; margin-bottom:2px;">${bloco.materia}</div>${itens}</div>`;
                 });
@@ -1358,7 +1369,6 @@
                         <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:10px;"><h3 style="font-size:14px; margin:0;">CARTÃO DE RESPOSTAS OMR</h3><p style="font-size:10px; margin:3px 0;">${prova.nome}</p></div>
                         <div style="border:1px solid #000; padding:5px; font-size:10px; margin-bottom:10px; background:#f9fafb;"><strong>NOME:</strong> ${aluno.nome.toUpperCase()}<br><strong>MATRÍCULA:</strong> ${aluno.numero||'--'} | <strong>CLASSE:</strong> ${turma.nome.toUpperCase()}</div>
                         <div style="column-count: 3; column-gap: 15px; flex:1;">${blocosHTML}</div>
-                        <!-- Marcadores pretos (essenciais para leitura ótica por app) -->
                         <div style="position:absolute; top:10px; left:10px; width:15px; height:15px; background:#000;"></div>
                         <div style="position:absolute; top:10px; right:10px; width:15px; height:15px; background:#000;"></div>
                         <div style="position:absolute; bottom:10px; left:10px; width:15px; height:15px; background:#000;"></div>
